@@ -1,68 +1,36 @@
 package main
 
 import (
-    "context"
-    "flag"
-    "log"
-    "net/http"
-    "os"
-    "os/signal"
-    "syscall"
-    "time"
+	"log"
+	"net/http"
+	"os"
+	"time"
 
-    cfg "llm-router-go/internal/config"
-    "llm-router-go/internal/server"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+
+	"llm-router-go/internal/http/handlers"
+	"llm-router-go/internal/policy"
 )
 
+var version = "dev" // set via -ldflags at build
+
 func main() {
-    // Parse command line flags
-    configPath := flag.String("config", "config/models.yaml", "path to models YAML file")
-    addr := flag.String("addr", ":8080", "HTTP listen address")
-    flag.Parse()
-    // Determine config file from env if provided
-    if env := os.Getenv("ROUTER_CONFIG"); env != "" {
-        *configPath = env
-    }
-    // Load models
-    models, err := cfg.LoadModels(*configPath)
-    if err != nil {
-        log.Fatalf("failed to load models from %s: %v", *configPath, err)
-    }
-    log.Printf("loaded %d models from %s", len(models), *configPath)
-    // Create store and populate
-    store := cfg.NewConfigStore()
-    store.SetModels(models)
-    // Watch for changes
-    go func() {
-        if err := cfg.WatchConfig(*configPath, store, log.Default()); err != nil {
-            log.Printf("configuration watcher error: %v", err)
-        }
-    }()
-    // Create HTTP server
-    handler := server.NewRouter(store)
-    srv := &http.Server{
-        Addr:         *addr,
-        Handler:      handler,
-        ReadTimeout:  5 * time.Second,
-        WriteTimeout: 10 * time.Second,
-    }
-    // Handle graceful shutdown
-    go func() {
-        log.Printf("starting server on %s", *addr)
-        if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-            log.Fatalf("failed to start server: %v", err)
-        }
-    }()
-    // Wait for interrupt signal to gracefully shutdown
-    quit := make(chan os.Signal, 1)
-    signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-    <-quit
-    log.Printf("shutting down server...")
-    // Attempt graceful shutdown with timeout
-    timeoutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
-    if err := srv.Shutdown(timeoutCtx); err != nil {
-        log.Printf("server shutdown error: %v", err)
-    }
-    log.Printf("server exited")
+	apiKey := os.Getenv("ROUTER_API_KEY")
+	catalog, err := policy.LoadCatalog("config/models.yaml")
+	if err != nil {
+		log.Fatalf("load catalog: %v", err)
+	}
+
+	r := chi.NewRouter()
+	r.Use(middleware.RequestID, middleware.RealIP, middleware.Logger, middleware.Recoverer, middleware.Timeout(30*time.Second))
+
+	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK); w.Write([]byte("ok")) })
+
+	deps := handlers.RecommendDeps{Version: version, Catalog: catalog, APIKey: apiKey}
+	r.Post("/v1/recommend", handlers.Recommend(deps))
+
+	addr := ":8080"
+	log.Printf("router listening on %s", addr)
+	log.Fatal(http.ListenAndServe(addr, r))
 }

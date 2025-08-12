@@ -1,0 +1,16 @@
+### Recommend (minimal)
+POST http://localhost:8080/v1/recommend
+Content-Type: application/json
+X-API-Key: dev
+
+{
+  "prompt": "Summarize this function and suggest a model",
+  "context": {
+    "language": "go",
+    "file_path": "internal/http/handlers/recommend.go",
+    "selection_bytes": 2048,
+    "snippets": [
+      {"source":"selection","text":"func foo() {}", "bytes": 14}
+    ]
+  }
+}
