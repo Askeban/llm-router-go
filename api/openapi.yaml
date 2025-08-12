@@ -1,0 +1,95 @@
+openapi: 3.0.1
+info:
+  title: llm-router
+  version: 1.0.0
+servers:
+  - url: https://YOUR_HOST
+paths:
+  /v1/recommend:
+    post:
+      summary: Recommend the best model for a given prompt/context
+      operationId: recommend
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecommendRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendResponse'
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  schemas:
+    RecommendRequest:
+      type: object
+      required: [prompt]
+      properties:
+        prompt: { type: string }
+        context:
+          $ref: '#/components/schemas/Context'
+        catalog:
+          type: array
+          items: { type: string }
+        limits:
+          type: object
+          properties:
+            max_prompt_kb: { type: integer }
+        meta:
+          type: object
+          additionalProperties: true
+    Context:
+      type: object
+      properties:
+        language: { type: string }
+        file_path: { type: string }
+        selection_bytes: { type: integer }
+        repo:
+          type: object
+          properties:
+            name: { type: string }
+            visibility: { type: string, enum: [public, private] }
+            monorepo: { type: boolean }
+            loc_estimate: { type: integer }
+        signals:
+          type: object
+          additionalProperties: { type: string }
+        snippets:
+          type: array
+          items:
+            type: object
+            required: [source]
+            properties:
+              source: { type: string, enum: [selection,file,open_editors,clipboard,repo] }
+              path: { type: string }
+              text: { type: string }
+              truncated: { type: boolean }
+              bytes: { type: integer }
+    RecommendResponse:
+      type: object
+      required: [recommended_model, version]
+      properties:
+        recommended_model: { type: string }
+        rationale: { type: string }
+        confidence: { type: number }
+        alternatives:
+          type: array
+          items: { type: string }
+        cost_ms_estimate: { type: integer }
+        tokens_in_estimate: { type: integer }
+        tokens_out_estimate: { type: integer }
+        flags:
+          type: array
+          items: { type: string }
+        trace_id: { type: string }
+        version: { type: string }

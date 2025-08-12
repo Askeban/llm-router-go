@@ -1,48 +1,25 @@
 models:
-  - id: gpt-3.5-turbo
-    name: GPT-3.5 Turbo
-    capabilities:
-      code: 0.65
-      text: 0.80
-      analysis: 0.70
-    cost_input: 0.0005
-    cost_output: 0.0005
-    context_window: 4096
-    latency_ms: 300
-    tags: [budget, general]
-
-  - id: gpt-4-turbo
-    name: GPT-4 Turbo
-    capabilities:
-      code: 0.90
-      text: 0.92
-      analysis: 0.85
-    cost_input: 0.003
-    cost_output: 0.006
-    context_window: 128000
-    latency_ms: 600
-    tags: [premium, high-quality, large-context]
-
-  - id: claude-3-opus
-    name: Claude 3 Opus
-    capabilities:
-      code: 0.88
-      text: 0.93
-      analysis: 0.87
-    cost_input: 0.008
-    cost_output: 0.024
-    context_window: 200000
-    latency_ms: 800
-    tags: [premium, high-quality]
-
-  - id: codellama-70b
-    name: Code Llama 70B (local)
-    capabilities:
-      code: 0.70
-      text: 0.50
-      analysis: 0.40
-    cost_input: 0.0001
-    cost_output: 0.0001
-    context_window: 4096
-    latency_ms: 150
-    tags: [open-source, budget, code]
+  - name: gpt-4o
+    strengths: [reasoning, code-gen]
+    max_input_tokens: 128000
+    cost_tier: high
+    latency_tier: med
+    languages: [ts, js, py, go, java, cpp, md]
+  - name: gpt-4o-mini
+    strengths: [code-gen, fast]
+    max_input_tokens: 64000
+    cost_tier: med
+    latency_tier: low
+    languages: [ts, js, py, go, md]
+  - name: claude-3.5-sonnet
+    strengths: [reasoning, long-context]
+    max_input_tokens: 200000
+    cost_tier: high
+    latency_tier: med
+    languages: [py, ts, go, java, md]
+  - name: gemini-1.5-pro
+    strengths: [multimodal, long-context]
+    max_input_tokens: 1000000
+    cost_tier: high
+    latency_tier: med
+    languages: [md, py, js, go]
