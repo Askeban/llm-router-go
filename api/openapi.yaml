@@ -24,6 +24,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RecommendResponse'
+  /v1/recommend/top:
+    post:
+      summary: Return top 3 models for a given prompt/context
+      operationId: recommendTop
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecommendRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendTopResponse'
 components:
   securitySchemes:
     ApiKeyAuth:
@@ -93,3 +112,26 @@ components:
           items: { type: string }
         trace_id: { type: string }
         version: { type: string }
+    RecommendTopResponse:
+      type: object
+      required: [models, version]
+      properties:
+        models:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModelInfo'
+        version: { type: string }
+    ModelInfo:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        strengths:
+          type: array
+          items: { type: string }
+        max_input_tokens: { type: integer }
+        cost_tier: { type: string }
+        latency_tier: { type: string }
+        languages:
+          type: array
+          items: { type: string }

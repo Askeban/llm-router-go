@@ -48,3 +48,17 @@ type RecommendResponse struct {
 	TraceID           string   `json:"trace_id,omitempty"`
 	Version           string   `json:"version"`
 }
+
+type ModelInfo struct {
+	Name           string   `json:"name"`
+	Strengths      []string `json:"strengths,omitempty"`
+	MaxInputTokens int      `json:"max_input_tokens,omitempty"`
+	CostTier       string   `json:"cost_tier,omitempty"`
+	LatencyTier    string   `json:"latency_tier,omitempty"`
+	Languages      []string `json:"languages,omitempty"`
+}
+
+type RecommendTopResponse struct {
+	Models  []ModelInfo `json:"models"`
+	Version string      `json:"version"`
+}

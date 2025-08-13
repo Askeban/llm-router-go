@@ -77,6 +77,64 @@ func Score(c Catalog, req *api.RecommendRequest) Decision {
 	return Decision{Top: top, Alternatives: alts, Confidence: conf, Rationale: strings.Join(why, " "), Flags: flags}
 }
 
+// TopModels returns up to n ranked models for the given request.
+func TopModels(c Catalog, req *api.RecommendRequest, n int) []Model {
+	long := req.Context != nil && (req.Context.SelectionBytes > 48000 || sumBytes(req) > 120000)
+	lang := ""
+	if req.Context != nil {
+		lang = req.Context.Language
+	}
+
+	limit := map[string]bool{}
+	if len(req.Catalog) > 0 {
+		for _, m := range req.Catalog {
+			limit[m] = true
+		}
+	}
+
+	cands := []Model{}
+	for _, m := range c.Models {
+		if len(limit) > 0 && !limit[m.Name] {
+			continue
+		}
+		if lang != "" && !contains(m.Languages, lang) {
+			continue
+		}
+		cands = append(cands, m)
+	}
+	if len(cands) == 0 {
+		cands = append(cands, c.Models...)
+	}
+
+	pref := []string{"gpt-4o-mini", "gpt-4o", "claude-3.5-sonnet"}
+	if long {
+		pref = []string{"claude-3.5-sonnet", "gemini-1.5-pro", "gpt-4o"}
+	}
+	ordered := []Model{}
+	for _, name := range pref {
+		for i, m := range cands {
+			if m.Name == name {
+				ordered = append(ordered, m)
+				cands = append(cands[:i], cands[i+1:]...)
+				break
+			}
+		}
+		if len(ordered) >= n {
+			return ordered[:n]
+		}
+	}
+	for _, m := range cands {
+		ordered = append(ordered, m)
+		if len(ordered) >= n {
+			break
+		}
+	}
+	if len(ordered) > n {
+		ordered = ordered[:n]
+	}
+	return ordered
+}
+
 func sumBytes(r *api.RecommendRequest) int {
 	if r.Context == nil {
 		return 0

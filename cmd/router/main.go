@@ -29,6 +29,7 @@ func main() {
 
 	deps := handlers.RecommendDeps{Version: version, Catalog: catalog, APIKey: apiKey}
 	r.Post("/v1/recommend", handlers.Recommend(deps))
+	r.Post("/v1/recommend/top", handlers.RecommendTop(deps))
 
 	addr := ":8080"
 	log.Printf("router listening on %s", addr)
