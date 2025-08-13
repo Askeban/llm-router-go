@@ -1,0 +1,110 @@
+openapi: 3.0.3
+info:
+  title: LLM Router API
+  version: 1.0.0
+servers:
+  - url: https://api.yourdomain.com
+paths:
+  /v1/select-model:
+    post:
+      summary: Select the single best model
+      security: [{ ApiKeyAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SelectRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SelectResponse' }
+  /v1/rank-models:
+    post:
+      summary: Rank models and return top-K with percentages
+      security: [{ ApiKeyAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SelectRequestWithTopK' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RankResponse' }
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  schemas:
+    File:
+      type: object
+      required: [path, content]
+      properties:
+        path: { type: string }
+        content: { type: string }
+    SelectRequest:
+      type: object
+      required: [prompt]
+      properties:
+        prompt: { type: string }
+        context:
+          type: object
+          properties:
+            language: { type: string }
+            files:
+              type: array
+              items: { $ref: '#/components/schemas/File' }
+        preferences:
+          type: object
+          properties:
+            prioritize:
+              type: string
+              enum: [quality, cost, latency]
+            allow_truncation: { type: boolean }
+        candidates:
+          type: array
+          items: { type: string }
+    SelectRequestWithTopK:
+      allOf:
+        - $ref: '#/components/schemas/SelectRequest'
+        - type: object
+          properties:
+            top_k: { type: integer, minimum: 1, maximum: 20, default: 5 }
+    SelectResponse:
+      type: object
+      properties:
+        recommended_model: { type: string }
+        confidence: { type: number, format: float }
+        model_name: { type: string }
+        explanation: { type: object, additionalProperties: true }
+    RankedModel:
+      type: object
+      properties:
+        model_id: { type: string }
+        name: { type: string }
+        score: { type: number }
+        percent: { type: number }
+        quality: { type: number }
+        success_prob: { type: number }
+        estimated_cost: { type: number }
+        expected_latency_ms: { type: integer }
+        reasons:
+          type: array
+          items: { type: string }
+    RankResponse:
+      type: object
+      properties:
+        prompt_type: { type: string }
+        complexity_score: { type: number }
+        sub_scores: { type: object, additionalProperties: { type: number } }
+        tokens_in: { type: integer }
+        estimated_output_tokens: { type: integer }
+        models:
+          type: array
+          items: { $ref: '#/components/schemas/RankedModel' }
