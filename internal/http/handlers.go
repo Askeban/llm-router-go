@@ -3,6 +3,10 @@ package http
 import (
 	"context"
 	"database/sql"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/Askeban/llm-router-go/internal/classifier"
 	"github.com/Askeban/llm-router-go/internal/config"
 	"github.com/Askeban/llm-router-go/internal/metrics"
@@ -10,8 +14,6 @@ import (
 	"github.com/Askeban/llm-router-go/internal/providers"
 	"github.com/Askeban/llm-router-go/internal/recommendation"
 	"github.com/gin-gonic/gin"
-	"strings"
-	"time"
 )
 
 type RouteRequest struct {
@@ -42,21 +44,21 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 		}
 		c.JSON(200, gin.H{"ok": true, "count": len(p.Metrics)})
 	})
-	r.GET("/metrics/models", func(c *gin.Context) {
-		rows, err := store.ListModels(c.Request.Context())
-		if err != nil {
-			c.JSON(500, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(200, rows)
-	})
+	// Note: /metrics/models route is now handled in registerMetricsLookup
 	r.GET("/metrics/:model", func(c *gin.Context) {
-		rows, err := store.GetMetrics(c.Request.Context(), c.Param("model"))
-		if err != nil {
-			c.JSON(500, gin.H{"error": err.Error()})
+		model := strings.TrimSpace(c.Param("model"))
+		if model == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "missing model"})
 			return
 		}
-		c.JSON(200, rows)
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+		defer cancel()
+
+		if rows, _ := store.GetMetricsByModelLoose(ctx, model); len(rows) > 0 {
+			c.JSON(http.StatusOK, rows)
+			return
+		}
+		c.JSON(http.StatusNotFound, nil)
 	})
 	r.POST("/route", func(c *gin.Context) {
 		var rr RouteRequest
@@ -168,4 +170,6 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 		}
 		c.JSON(200, gin.H{"classification": gin.H{"category": cat, "difficulty": diff, "latency_ms": classifyMs}, "model_used": best, "usage": usage, "output": out})
 	})
+	mstore := metrics.NewStore(db)
+	registerMetricsLookup(r, mstore)
 }

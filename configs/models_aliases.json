@@ -1,0 +1,15 @@
+{
+  "openai-gpt-4o":        ["GPT-4o", "openai/gpt-4o", "openai/gpt-4-0613", "openai/gpt-4"],
+  "openai-gpt-4o-mini":   ["GPT-4o mini", "gpt-4o-mini", "OpenAI GPT-4o mini"],
+  "anthropic-claude-3.5-sonnet": [
+    "Claude 3.5 Sonnet (June '24)", "Claude 3.5 Sonnet (Oct '24)", "Claude 3.5 Sonnet",
+    "anthropic/claude-3.5-sonnet", "anthropic_claude-3.5-sonnet"
+  ],
+  "anthropic-claude-3.7-sonnet": ["Claude 3.7 Sonnet (Standard)", "Claude 3.7 Sonnet (Extended Thinking)"],
+  "google-gemini-1.5-pro": ["Gemini 1.5 Pro", "google/gemini-1.5-pro", "gemini-1.5-pro"],
+  "meta-llama-2-70b":      ["meta/llama-2-70b"],
+  "meta-llama-2-13b":      ["meta/llama-2-13b"],
+  "meta-llama-2-7b":       ["meta/llama-2-7b"],
+  "mistralai-mistral-7b":  ["mistralai/mistral-7b-v0.1"],
+  "mistralai-mixtral-8x7b": ["mistralai/mixtral-8x7b-32kseqlen"]
+}
