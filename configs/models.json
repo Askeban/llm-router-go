@@ -1,0 +1,114 @@
+[
+  {
+    "id": "openai-gpt-4o",
+    "provider": "openai",
+    "display_name": "OpenAI GPT-4o",
+    "context_window": 128000,
+    "cost_in_per_1k": 0.005,
+    "cost_out_per_1k": 0.015,
+    "avg_latency_ms": 2500,
+    "open_source": false,
+    "tags": [
+      "closed",
+      "general",
+      "vision"
+    ],
+    "capabilities": {
+      "coding": 0.92,
+      "reasoning": 0.92,
+      "writing": 0.9,
+      "support": 0.9,
+      "math": 0.9
+    },
+    "notes": "High performance general model"
+  },
+  {
+    "id": "anthropic-claude-3.5-sonnet",
+    "provider": "anthropic",
+    "display_name": "Claude 3.5 Sonnet",
+    "context_window": 200000,
+    "cost_in_per_1k": 0.003,
+    "cost_out_per_1k": 0.015,
+    "avg_latency_ms": 2200,
+    "open_source": false,
+    "tags": [
+      "closed",
+      "reasoning",
+      "coding"
+    ],
+    "capabilities": {
+      "coding": 0.88,
+      "reasoning": 0.93,
+      "writing": 0.9,
+      "support": 0.9,
+      "math": 0.88
+    },
+    "notes": "Excellent reasoning"
+  },
+  {
+    "id": "google-gemini-1.5-pro",
+    "provider": "google",
+    "display_name": "Google Gemini 1.5 Pro",
+    "context_window": 1000000,
+    "cost_in_per_1k": 0.0025,
+    "cost_out_per_1k": 0.0075,
+    "avg_latency_ms": 1800,
+    "open_source": false,
+    "tags": [
+      "closed",
+      "multimodal"
+    ],
+    "capabilities": {
+      "coding": 0.8,
+      "reasoning": 0.86,
+      "writing": 0.88,
+      "support": 0.88,
+      "math": 0.86
+    },
+    "notes": "Strong multimodal"
+  },
+  {
+    "id": "openrouter-meta-llama-3-70b-instruct",
+    "provider": "openrouter",
+    "display_name": "Llama 3 70B Instruct (hosted)",
+    "context_window": 8000,
+    "cost_in_per_1k": 0.0008,
+    "cost_out_per_1k": 0.0016,
+    "avg_latency_ms": 2200,
+    "open_source": true,
+    "tags": [
+      "open",
+      "general"
+    ],
+    "capabilities": {
+      "coding": 0.72,
+      "reasoning": 0.78,
+      "writing": 0.82,
+      "support": 0.8,
+      "math": 0.74
+    },
+    "notes": "Open-weight value"
+  },
+  {
+    "id": "openrouter-deepseek-coder-v2",
+    "provider": "openrouter",
+    "display_name": "DeepSeek Coder V2 (hosted)",
+    "context_window": 128000,
+    "cost_in_per_1k": 0.0006,
+    "cost_out_per_1k": 0.0015,
+    "avg_latency_ms": 2000,
+    "open_source": false,
+    "tags": [
+      "coding",
+      "cheap"
+    ],
+    "capabilities": {
+      "coding": 0.86,
+      "reasoning": 0.78,
+      "writing": 0.7,
+      "support": 0.72,
+      "math": 0.75
+    },
+    "notes": "Strong for code"
+  }
+]

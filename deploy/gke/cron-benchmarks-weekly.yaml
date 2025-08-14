@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ingest-benchmarks-weekly
+  namespace: llm-router
+spec:
+  schedule: "0 2 * * 1"   # Mondays 02:00 UTC
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: curl
+            image: curlimages/curl:8.8.0
+            args:
+            - -sS
+            - -X
+            - POST
+            - -H
+            - content-type: application/json
+            - --retry
+            - "5"
+            - --data
+            - '{"sources":["open-llm-leaderboard","lmarena","helm","helm_gcs"]}'
+            - http://ingestor:5100/refresh

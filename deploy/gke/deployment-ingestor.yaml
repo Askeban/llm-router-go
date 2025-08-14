@@ -1,0 +1,21 @@
+env:
+  - name: ROUTER_API
+    value: "http://api:8080/ingest"
+  - name: SOURCES
+    value: "open-llm-leaderboard,lmarena,helm,helm_gcs"
+
+  # HELM via public GCS (optional)
+  - name: HELM_GCS_HTTP_PREFIX
+    value: "https://storage.googleapis.com/crfm-helm-public/lite/benchmark_output"
+  - name: HELM_SUITE_VERSION
+    value: "v1.0.0"
+  - name: HELM_RUN_IDS
+    value: "openai-gpt-4o_2024-07-01,anthropic-claude-3.5-sonnet_2024-07-01"
+
+  # Artificial Analysis API (optional; use Secret)
+  - name: AA_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: router-secrets
+        key: AA_API_KEY
+

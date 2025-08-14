@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ingest-prices-monthly
+  namespace: llm-router
+spec:
+  schedule: "0 3 1 * *"   # 1st of the month 03:00 UTC
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: curl
+            image: curlimages/curl:8.8.0
+            args:
+            - -sS
+            - -X
+            - POST
+            - -H
+            - content-type: application/json
+            - --retry
+            - "5"
+            - --data
+            - '{"sources":["artificialanalysis"]}'
+            - http://ingestor:5100/refresh
