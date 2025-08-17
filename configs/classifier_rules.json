@@ -1,0 +1,82 @@
+{
+  "priority": ["coding", "math", "question", "reasoning", "business", "chat", "general"],
+
+  "categories": {
+    "coding": {
+      "contains": [
+        {"terms": ["```", "unit test", "stack trace", "write a function", "refactor", "compile error"], "weight": 2.0},
+        {"terms": ["go", "golang", "python", "java", "javascript", "typescript", "rust", "c++", "c#", "regex", "sql", "dockerfile"], "weight": 1.5},
+        {"terms": ["package ", "import ", "def ", "class ", "#include", "public static", "fn ", "console.log", "<?php", "using ", " => ", " := "], "weight": 2.5}
+      ],
+      "cooccur": [
+        {"any_of_a": ["go", "golang", "python", "javascript", "typescript", "java", "rust", "c++", "c#"], "any_of_b": ["write", "implement", "generate", "create", "build"], "weight": 2.5}
+      ],
+      "threshold": 3.0,
+      "weight_scalar": 1.0
+    },
+
+    "math": {
+      "contains": [
+        {"terms": ["solve", "equation", "integral", "derivative", "matrix", "vector", "limit", "proof", "theorem", "lemma", "corollary"], "weight": 2.0},
+        {"terms": ["∑", "∫", "√", "±", "÷", "×", "≤", "≥", "\\frac", "\\sum_", "\\int_"], "weight": 2.0}
+      ],
+      "regex": [
+        {"pattern": "\\b[a-zA-Z]\\s*=\\s*[^=]", "weight": 1.0}
+      ],
+      "threshold": 3.0
+    },
+
+    "question": {
+      "regex": [
+        {"pattern": "^(who|what|where|when|why|how|which)\\b.*\\?$", "weight": 2.0},
+        {"pattern": "\\?$", "weight": 1.0}
+      ]
+    },
+
+    "reasoning": {
+      "contains": [
+        {"terms": ["explain", "analyze", "analyse", "compare", "contrast", "evaluate", "assess", "justify", "derive", "step by step", "reason about"], "weight": 1.0}
+      ],
+      "regex": [
+        {"pattern": "\\b(step by step|chain of thought|show your work)\\b", "weight": 2.0}
+      ]
+    },
+
+    "business": {
+      "contains": [
+        {"terms": ["market", "business", "financial", "revenue", "profit", "roi", "budget", "invoice", "pricing", "segmentation", "forecast", "p&l", "capex", "opex"], "weight": 1.0}
+      ]
+    },
+
+    "chat": {
+      "contains": [
+        {"terms": ["hello", "hi ", "hey", "how are you", "what's up", "let's chat", "good morning"], "weight": 1.0}
+      ],
+      "startswith": [
+        {"terms": ["hello", "hi ", "hey"], "weight": 1.0}
+      ]
+    },
+
+    "general": {}
+  },
+
+  "difficulty": {
+    "weights": { "length": 0.45, "structure": 0.15, "requirements": 0.25, "domain": 0.15 },
+    "length_cap_tokens": 400,
+    "newlines_cap": 10,
+    "requirement_terms": ["requirement", "requirements", "constraint", "constraints", "edge case", "optimize", "time complexity", "big-o", "latency", "throughput", "SLA", "security", "privacy", "compliance"],
+    "domain_bonuses": {
+      "math":   { "base": 0.2, "hard_terms": ["prove", "theorem", "spectral", "fourier", "laplace", "nonlinear"], "increment": 0.1, "max": 0.4 },
+      "coding": { "base": 0.0, "hard_terms": ["concurrency", "deadlock", "lock-free", "cap theorem", "distributed", "consensus", "regex", "parser", "time complexity"], "increment": 0.1, "max": 0.4 }
+    }
+  },
+
+  "sentiment": {
+    "positive": ["love", "like", "great", "excellent", "awesome", "thanks", "amazing", "perfect", "nice", "cool"],
+    "negative": ["hate", "terrible", "awful", "bad", "useless", "angry", "wtf", "stupid", "garbage", "broken", "doesn't work"],
+    "negate_positive_regexes": ["not\\s+(good|great|awesome|perfect|amazing|helpful|nice|cool)"],
+    "negate_negative_regexes": ["not\\s+(bad|awful|terrible|useless|stupid|annoying|broken)"],
+    "min_gap": 2
+  }
+}
+

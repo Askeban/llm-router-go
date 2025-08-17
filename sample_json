@@ -1,0 +1,25 @@
+[
+  {
+    "name": "GPT-4",
+    "slug": "gpt-4",
+    "intelligence": 95.0,
+    "coding": 90.0,
+    "math": 85.0,
+    "safety": 95.0,
+    "speed": 25.0,
+    "latency": 2.0,
+    "cost": 60.0
+  },
+  {
+    "name": "Llama2-13B",
+    "slug": "llama2-13b",
+    "intelligence": 70.0,
+    "coding": 65.0,
+    "math": 60.0,
+    "safety": 50.0,
+    "speed": 10.0,
+    "latency": 5.0,
+    "cost": 0.0
+  }
+]
+

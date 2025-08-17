@@ -10,22 +10,31 @@ services:
       - CLASSIFIER_URL=http://classifier:5000
       - SQLITE_PATH=/app/data/router.db
       - MODEL_PROFILES_PATH=/app/configs/models.json
+      - ANALYTICS_AI_KEY=aa_xVbWcYLLtqFFfHzVMaeAYuYCSxaTMRvE
+      - CLASSIFIER_RULES_PATH=/app/configs/classifier_rules.json
     ports: ["8081:8080"]
     depends_on: [classifier, ingestor]
-    volumes: ["apidata:/app/data"]
+    volumes: 
+      - apidata:/app/data
+      - ./configs:/app/configs:ro
   classifier:
     build: { context: ., dockerfile: docker/Dockerfile.classifier }
+    environment:
+      - CLASSIFIER_RULES_PATH=/app/configs/classifier_rules.json
+    volumes:
+      - ./configs:/app/configs:ro
     ports: ["5001:5000"]
   ingestor:
     build: { context: ., dockerfile: docker/Dockerfile.ingestor }
     environment:
       - ROUTER_API=http://api:8080/ingest
       - SOURCES=open-llm-leaderboard,lmarena,artificialanalysis
-      - AA_API_KEY=${AA_API_KEY}
+      - ANALYTICS_AI_KEY=aa_xVbWcYLLtqFFfHzVMaeAYuYCSxaTMRvE
       - HELM_GCS_BUCKET=crfm-helm-public
       - HELM_GCS_PREFIX=lite/benchmark_output/runs
       - HELM_GCS_SUITE=v1.0.0
       - HELM_GCS_LIMIT=50     
       - HELM_JSON_URLS=${HELM_JSON_URLS}
+      - CLASSIFIER_RULES_PATH=/app/configs/classifier_rules.json
     ports: ["5100:5100"]
 volumes: { apidata: {} }
