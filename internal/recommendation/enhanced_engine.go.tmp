@@ -1,0 +1,957 @@
+package recommendation
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"math"
+	"net/http"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/Askeban/llm-router-go/internal/models"
+)
+
+// Enhanced recommendation engine with 3-stage funnel system
+
+// CustomerConstraints represents user-defined constraints for model selection
+type CustomerConstraints struct {
+	MaxCostPer1K       *float64  `json:"max_cost_per_1k,omitempty"`
+	MinCostPer1K       *float64  `json:"min_cost_per_1k,omitempty"`
+	AllowedProviders   []string  `json:"allowed_providers,omitempty"`
+	ExcludedProviders  []string  `json:"excluded_providers,omitempty"`
+	ExcludedModels     []string  `json:"excluded_models,omitempty"`
+	RequiredModels     []string  `json:"required_models,omitempty"`
+	MaxLatencyMs       *int      `json:"max_latency_ms,omitempty"`
+	MinContextWindow   *int      `json:"min_context_window,omitempty"`
+	RequireOpenSource  *bool     `json:"require_open_source,omitempty"`
+	RequireCensored    *bool     `json:"require_censored,omitempty"`
+}
+
+// RecommendationPreference defines the user's preference for the final selection
+type RecommendationPreference string
+
+const (
+	PreferencePerformance RecommendationPreference = "performance" // Best quality, cost irrelevant
+	PreferenceBalanced    RecommendationPreference = "balanced"    // Near-best quality, lowest cost
+	PreferenceCostSaver   RecommendationPreference = "cost_saver"  // Acceptable quality, absolute lowest cost
+)
+
+// ClassifierResponse represents the output from the enhanced classifier
+type ClassifierResponse struct {
+	PrimaryUseCase        string             `json:"primary_use_case"`
+	ComplexityScore       float64            `json:"complexity_score"`
+	CreativityScore       float64            `json:"creativity_score"`
+	TokenCountEstimate    int                `json:"token_count_estimate"`
+	UrgencyLevel          float64            `json:"urgency_level"`
+	OutputLengthEstimate  int                `json:"output_length_estimate"`
+	InteractionStyle      string             `json:"interaction_style"`
+	DomainConfidence      float64            `json:"domain_confidence"`
+	Difficulty            string             `json:"difficulty"`
+	// Advanced fields if available
+	SemanticCategory      string             `json:"semantic_category,omitempty"`
+	SemanticConfidence    float64            `json:"semantic_confidence,omitempty"`
+	SemanticFeatures      map[string]float64 `json:"semantic_features,omitempty"`
+	RuleBasedCategory     string             `json:"rule_based_category,omitempty"`
+	AppliedRules          []string           `json:"applied_rules,omitempty"`
+	RuleConfidence        float64            `json:"rule_confidence,omitempty"`
+	FinalCategory         string             `json:"final_category,omitempty"`
+	FinalConfidence       float64            `json:"final_confidence,omitempty"`
+}
+
+// CandidateModel represents a model that passed Stage 1 filtering
+type CandidateModel struct {
+	Model      models.ModelProfile `json:"model"`
+	MatchScore float64              `json:"match_score"`
+	Details    ScoringDetails       `json:"details"`
+}
+
+// ScoringDetails provides transparency into how the match score was calculated
+type ScoringDetails struct {
+	ComplexityScore  float64 `json:"complexity_score"`
+	CreativityScore  float64 `json:"creativity_score"`
+	BenchmarkScore   float64 `json:"benchmark_score"`
+	CapabilityScore  float64 `json:"capability_score"`
+	QualityScore     float64 `json:"quality_score"`
+	WeightedScores   map[string]float64 `json:"weighted_scores"`
+}
+
+// RecommendationResult represents the final recommendation with full transparency
+type RecommendationResult struct {
+	RecommendedModel   models.ModelProfile    `json:"recommended_model"`
+	RecommendationScore float64               `json:"recommendation_score"`
+	Strategy           RecommendationPreference `json:"strategy"`
+	Reasoning          string                 `json:"reasoning"`
+	
+	// Funnel transparency
+	Stage1Filtered     int                    `json:"stage1_filtered"`
+	Stage2Candidates   []CandidateModel       `json:"stage2_candidates"`
+	AlternativeModels  []CandidateModel       `json:"alternative_models,omitempty"`
+	
+	// Performance insights
+	ProcessingTimeMs   int64                  `json:"processing_time_ms"`
+	ClassifierUsed     string                 `json:"classifier_used"`
+	ConstraintsApplied CustomerConstraints    `json:"constraints_applied"`
+}
+
+// EnhancedRecommendationEngine implements the 3-stage funnel system
+type EnhancedRecommendationEngine struct {
+	classifierURL    string
+	classifierClient *http.Client
+	
+	// Scoring weights - can be tuned based on data
+	complexityWeight  float64
+	creativityWeight  float64
+	benchmarkWeight   float64
+	capabilityWeight  float64
+	qualityWeight     float64
+	
+	// Performance thresholds
+	balancedThreshold   float64 // Percentage of top score for "balanced" mode
+	minimumAcceptable   float64 // Minimum match score for "cost_saver" mode
+	
+	// Caching for performance
+	lastClassification map[string]*ClassifierResponse
+	cacheTimeout      time.Duration
+}
+
+// NewEnhancedRecommendationEngine creates a new enhanced recommendation engine
+func NewEnhancedRecommendationEngine(classifierURL string) *EnhancedRecommendationEngine {
+	return &EnhancedRecommendationEngine{
+		classifierURL:    classifierURL,
+		classifierClient: &http.Client{Timeout: 30 * time.Second},
+		
+		// Default scoring weights - can be optimized
+		complexityWeight:  0.25,
+		creativityWeight:  0.20,
+		benchmarkWeight:   0.30,
+		capabilityWeight:  0.15,
+		qualityWeight:     0.10,
+		
+		// Default thresholds
+		balancedThreshold: 0.90, // 90% of top score
+		minimumAcceptable: 0.60, // 60% minimum for cost saver
+		
+		// Caching
+		lastClassification: make(map[string]*ClassifierResponse),
+		cacheTimeout:      5 * time.Minute,
+	}
+}
+
+// RecommendModel implements the complete 3-stage recommendation funnel
+func (engine *EnhancedRecommendationEngine) RecommendModel(
+	prompt string,
+	models []models.ModelProfile,
+	constraints *CustomerConstraints,
+	preference RecommendationPreference,
+) (*RecommendationResult, error) {
+	
+	startTime := time.Now()
+	
+	// Step 0: Classify the prompt
+	classification, err := engine.classifyPrompt(prompt)
+	if err != nil {
+		return nil, fmt.Errorf("classification failed: %w", err)
+	}
+	
+	// Default constraints if not provided
+	if constraints == nil {
+		constraints = &CustomerConstraints{}
+	}
+	
+	// Default preference if not provided
+	if preference == "" {
+		preference = PreferenceBalanced
+	}
+	
+	log.Printf("Starting recommendation for %d models with preference: %s", len(models), preference)
+	
+	// STAGE 1: Pre-filtering (Hard Constraints)
+	candidates, filtered := engine.stage1PreFiltering(models, classification, constraints)
+	log.Printf("Stage 1: %d models passed pre-filtering (%d filtered out)", len(candidates), filtered)
+	
+	if len(candidates) == 0 {
+		return nil, fmt.Errorf("no models meet the specified constraints")
+	}
+	
+	// STAGE 2: Candidate Scoring (Soft Matching)
+	scoredCandidates := engine.stage2CandidateScoring(candidates, classification)
+	log.Printf("Stage 2: Scored %d candidates", len(scoredCandidates))
+	
+	// Sort candidates by match score (descending)
+	sort.Slice(scoredCandidates, func(i, j int) bool {
+		return scoredCandidates[i].MatchScore > scoredCandidates[j].MatchScore
+	})
+	
+	// STAGE 3: Cost-Benefit Analysis & Final Selection
+	recommendedModel, reasoning := engine.stage3CostBenefitAnalysis(scoredCandidates, preference)
+	log.Printf("Stage 3: Selected model %s with reasoning: %s", recommendedModel.Model.ID, reasoning)
+	
+	// Prepare alternative recommendations (top 3 alternatives)
+	alternatives := []CandidateModel{}
+	for i, candidate := range scoredCandidates {
+		if i > 0 && i < 4 && candidate.Model.ID != recommendedModel.Model.ID {
+			alternatives = append(alternatives, candidate)
+		}
+	}
+	
+	processingTime := time.Since(startTime).Milliseconds()
+	
+	return &RecommendationResult{
+		RecommendedModel:   recommendedModel.Model,
+		RecommendationScore: recommendedModel.MatchScore,
+		Strategy:           preference,
+		Reasoning:          reasoning,
+		Stage1Filtered:     filtered,
+		Stage2Candidates:   scoredCandidates,
+		AlternativeModels:  alternatives,
+		ProcessingTimeMs:   processingTime,
+		ClassifierUsed:     engine.getClassifierType(classification),
+		ConstraintsApplied: *constraints,
+	}, nil
+}
+
+// classifyPrompt calls the enhanced classifier service
+func (engine *EnhancedRecommendationEngine) classifyPrompt(prompt string) (*ClassifierResponse, error) {
+	// Check cache first
+	if cached, exists := engine.lastClassification[prompt]; exists {
+		log.Printf("Using cached classification for prompt")
+		return cached, nil
+	}
+	
+	// Prepare request
+	requestBody := map[string]string{"prompt": prompt}
+	requestJSON, err := json.Marshal(requestBody)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Try advanced classification first, fallback to basic
+	endpoints := []string{"/classify/advanced", "/classify"}
+	
+	for _, endpoint := range endpoints {
+		resp, err := engine.classifierClient.Post(
+			engine.classifierURL+endpoint,
+			"application/json",
+			strings.NewReader(string(requestJSON)),
+		)
+		
+		if err != nil {
+			log.Printf("Failed to call classifier %s: %v", endpoint, err)
+			continue
+		}
+		
+		defer resp.Body.Close()
+		
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			log.Printf("Classifier %s returned non-200: %d - %s", endpoint, resp.StatusCode, string(body))
+			continue
+		}
+		
+		var classification ClassifierResponse
+		if err := json.NewDecoder(resp.Body).Decode(&classification); err != nil {
+			log.Printf("Failed to decode classifier response from %s: %v", endpoint, err)
+			continue
+		}
+		
+		// Cache the result
+		engine.lastClassification[prompt] = &classification
+		
+		log.Printf("Successfully classified prompt using %s: category=%s, complexity=%.2f", 
+			endpoint, classification.PrimaryUseCase, classification.ComplexityScore)
+		
+		return &classification, nil
+	}
+	
+	return nil, fmt.Errorf("failed to classify prompt using any available endpoint")
+}
+
+// getClassifierType determines which type of classification was used
+func (engine *EnhancedRecommendationEngine) getClassifierType(classification *ClassifierResponse) string {
+	if classification.FinalCategory != "" {
+		return "advanced_4_phase"
+	} else if classification.SemanticCategory != "" {
+		return "semantic_enhanced"
+	} else {
+		return "basic_multidimensional"
+	}
+}
+
+// STAGE 1: Pre-filtering with hard constraints
+func (engine *EnhancedRecommendationEngine) stage1PreFiltering(
+	models []models.ModelProfile,
+	classification *ClassifierResponse,
+	constraints *CustomerConstraints,
+) ([]models.ModelProfile, int) {
+	
+	var candidates []models.ModelProfile
+	filtered := 0
+	
+	primaryUseCase := classification.PrimaryUseCase
+	if classification.FinalCategory != "" {
+		primaryUseCase = classification.FinalCategory
+	}
+	
+	for _, model := range models {
+		// Filter 1: Use Case Compatibility
+		if !engine.isUseCaseCompatible(model, primaryUseCase) {
+			filtered++
+			continue
+		}
+		
+		// Filter 2: Context Window Adequacy
+		requiredTokens := classification.TokenCountEstimate + classification.OutputLengthEstimate
+		if model.ContextWindow < requiredTokens {
+			filtered++
+			continue
+		}
+		
+		// Filter 3: Customer Constraints
+		if !engine.meetsCustomerConstraints(model, constraints) {
+			filtered++
+			continue
+		}
+		
+		candidates = append(candidates, model)
+	}
+	
+	return candidates, filtered
+}
+
+// isUseCaseCompatible checks if model supports the required use case
+func (engine *EnhancedRecommendationEngine) isUseCaseCompatible(model models.ModelProfile, useCase string) bool {
+	// Check enhanced capabilities if available
+	if model.EnhancedCapabilities != nil {
+		if capability, exists := model.EnhancedCapabilities[useCase]; exists {
+			return capability.Score > 0.3 // Minimum capability threshold
+		}
+	}
+	
+	// Fallback to basic capabilities
+	if capability, exists := model.Capabilities[strings.ToLower(useCase)]; exists {
+		return capability > 0.3
+	}
+	
+	// Check BestAt array (legacy support)
+	for _, bestAt := range model.BestAt {
+		if strings.EqualFold(bestAt, useCase) {
+			return true
+		}
+	}
+	
+	return false
+}
+
+// meetsCustomerConstraints checks all customer-defined constraints
+func (engine *EnhancedRecommendationEngine) meetsCustomerConstraints(
+	model models.ModelProfile,
+	constraints *CustomerConstraints,
+) bool {
+	
+	// Cost constraints
+	if constraints.MaxCostPer1K != nil && model.CostInPer1K > *constraints.MaxCostPer1K {
+		return false
+	}
+	if constraints.MinCostPer1K != nil && model.CostInPer1K < *constraints.MinCostPer1K {
+		return false
+	}
+	
+	// Provider constraints
+	if len(constraints.AllowedProviders) > 0 {
+		allowed := false
+		for _, allowedProvider := range constraints.AllowedProviders {
+			if strings.EqualFold(model.Provider, allowedProvider) {
+				allowed = true
+				break
+			}
+		}
+		if !allowed {
+			return false
+		}
+	}
+	
+	if len(constraints.ExcludedProviders) > 0 {
+		for _, excludedProvider := range constraints.ExcludedProviders {
+			if strings.EqualFold(model.Provider, excludedProvider) {
+				return false
+			}
+		}
+	}
+	
+	// Model constraints
+	if len(constraints.ExcludedModels) > 0 {
+		for _, excludedModel := range constraints.ExcludedModels {
+			if strings.EqualFold(model.ID, excludedModel) {
+				return false
+			}
+		}
+	}
+	
+	if len(constraints.RequiredModels) > 0 {
+		found := false
+		for _, requiredModel := range constraints.RequiredModels {
+			if strings.EqualFold(model.ID, requiredModel) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	
+	// Latency constraints
+	if constraints.MaxLatencyMs != nil && model.AvgLatencyMs > *constraints.MaxLatencyMs {
+		return false
+	}
+	
+	// Context window constraints
+	if constraints.MinContextWindow != nil && model.ContextWindow < *constraints.MinContextWindow {
+		return false
+	}
+	
+	// Open source constraint
+	if constraints.RequireOpenSource != nil && *constraints.RequireOpenSource {
+		// Check if model is open source (this would need to be in ModelProfile)
+		// For now, we'll use a simple heuristic based on provider
+		openSourceProviders := []string{"huggingface", "ollama", "local"}
+		isOpenSource := false
+		for _, provider := range openSourceProviders {
+			if strings.Contains(strings.ToLower(model.Provider), provider) {
+				isOpenSource = true
+				break
+			}
+		}
+		if !isOpenSource {
+			return false
+		}
+	}
+	
+	return true
+}
+
+// STAGE 2: Candidate Scoring with nuanced soft matching
+func (engine *EnhancedRecommendationEngine) stage2CandidateScoring(
+	candidates []models.ModelProfile,
+	classification *ClassifierResponse,
+) []CandidateModel {
+	
+	var scoredCandidates []CandidateModel
+	
+	for _, model := range candidates {
+		details := engine.calculateMatchScore(model, classification)
+		
+		candidate := CandidateModel{
+			Model:      model,
+			MatchScore: details.WeightedScores["total"],
+			Details:    details,
+		}
+		
+		scoredCandidates = append(scoredCandidates, candidate)
+	}
+	
+	return scoredCandidates
+}
+
+// calculateMatchScore computes the multi-factor match score
+func (engine *EnhancedRecommendationEngine) calculateMatchScore(
+	model models.ModelProfile,
+	classification *ClassifierResponse,
+) ScoringDetails {
+	
+	// 1. Complexity Score
+	complexityScore := engine.calculateComplexityMatch(model, classification.ComplexityScore)
+	
+	// 2. Creativity Score  
+	creativityScore := engine.calculateCreativityMatch(model, classification.CreativityScore)
+	
+	// 3. Benchmark Score (Data-Driven)
+	benchmarkScore := engine.calculateBenchmarkScore(model, classification.PrimaryUseCase)
+	
+	// 4. Capability Score (Enhanced capabilities if available)
+	capabilityScore := engine.calculateCapabilityScore(model, classification)
+	
+	// 5. Quality Score (Based on usage metrics and ratings)
+	qualityScore := engine.calculateQualityScore(model)
+	
+	// Weighted combination
+	weightedScores := map[string]float64{
+		"complexity":  complexityScore * engine.complexityWeight,
+		"creativity":  creativityScore * engine.creativityWeight,
+		"benchmark":   benchmarkScore * engine.benchmarkWeight,
+		"capability":  capabilityScore * engine.capabilityWeight,
+		"quality":     qualityScore * engine.qualityWeight,
+	}
+	
+	totalScore := 0.0
+	for _, score := range weightedScores {
+		totalScore += score
+	}
+	weightedScores["total"] = totalScore
+	
+	return ScoringDetails{
+		ComplexityScore:  complexityScore,
+		CreativityScore:  creativityScore,
+		BenchmarkScore:   benchmarkScore,
+		CapabilityScore:  capabilityScore,
+		QualityScore:     qualityScore,
+		WeightedScores:   weightedScores,
+	}
+}
+
+// calculateComplexityMatch scores how well model handles the required complexity
+func (engine *EnhancedRecommendationEngine) calculateComplexityMatch(
+	model models.ModelProfile,
+	requiredComplexity float64,
+) float64 {
+	
+	// Convert complexity score to category for matching
+	complexityCategory := "medium"
+	if requiredComplexity < 0.33 {
+		complexityCategory = "low"
+	} else if requiredComplexity > 0.66 {
+		complexityCategory = "high"
+	}
+	
+	// Check if model has ideal complexity profile
+	if model.ComplexityProfiles != nil {
+		if profile, exists := model.ComplexityProfiles[complexityCategory]; exists {
+			// Perfect match gets full score, adjusted by confidence
+			return profile.Score * profile.Confidence
+		}
+		
+		// Check adjacent complexity levels for partial credit
+		adjacent := map[string][]string{
+			"low":    {"medium"},
+			"medium": {"low", "high"},
+			"high":   {"medium"},
+		}
+		
+		bestScore := 0.0
+		for _, adj := range adjacent[complexityCategory] {
+			if profile, exists := model.ComplexityProfiles[adj]; exists {
+				// Adjacent match gets 70% credit
+				score := profile.Score * profile.Confidence * 0.7
+				if score > bestScore {
+					bestScore = score
+				}
+			}
+		}
+		
+		if bestScore > 0 {
+			return bestScore
+		}
+	}
+	
+	// Fallback: Use basic capability score
+	useCase := "reasoning" // Default assumption for complexity
+	if capability, exists := model.Capabilities[useCase]; exists {
+		// Adjust based on complexity requirement
+		if requiredComplexity > 0.66 {
+			return capability * 0.9 // High complexity needs strong reasoning
+		} else if requiredComplexity < 0.33 {
+			return math.Min(capability * 1.2, 1.0) // Low complexity is easier
+		}
+		return capability
+	}
+	
+	return 0.5 // Default neutral score
+}
+
+// calculateCreativityMatch scores how well model handles creative tasks
+func (engine *EnhancedRecommendationEngine) calculateCreativityMatch(
+	model models.ModelProfile,
+	requiredCreativity float64,
+) float64 {
+	
+	// Check enhanced capabilities first
+	if model.EnhancedCapabilities != nil {
+		if capability, exists := model.EnhancedCapabilities["creative_writing"]; exists {
+			// Adjust score based on creativity requirement
+			baseScore := capability.Score
+			if requiredCreativity > 0.7 {
+				return baseScore // High creativity tasks need full capability
+			} else if requiredCreativity < 0.3 {
+				return math.Min(baseScore * 1.3, 1.0) // Low creativity is easier
+			}
+			return baseScore * (0.8 + 0.4*requiredCreativity) // Scale with requirement
+		}
+	}
+	
+	// Fallback to basic capabilities
+	if capability, exists := model.Capabilities["creative_writing"]; exists {
+		return capability * (0.7 + 0.6*requiredCreativity)
+	}
+	
+	// If no specific creativity score, use general language capability
+	if capability, exists := model.Capabilities["general"]; exists {
+		// Creative tasks are harder for general models
+		return capability * 0.6 * (0.5 + 0.5*requiredCreativity)
+	}
+	
+	return 0.4 // Default score for creativity
+}
+
+// calculateBenchmarkScore uses objective benchmark data for scoring
+func (engine *EnhancedRecommendationEngine) calculateBenchmarkScore(
+	model models.ModelProfile,
+	useCase string,
+) float64 {
+	
+	if model.BenchmarkScores == nil || len(model.BenchmarkScores) == 0 {
+		return 0.5 // Neutral score if no benchmark data
+	}
+	
+	// Map use cases to relevant benchmarks
+	benchmarkMapping := map[string][]string{
+		"coding":          {"humaneval", "swe_bench", "mbpp", "code_contests"},
+		"reasoning":       {"gsm8k", "math", "arc_challenge", "hellaswag"},
+		"creative_writing": {"creative_tasks", "writing_quality"},
+		"conversation":    {"dialogue_quality", "helpfulness"},
+		"analysis":        {"reading_comprehension", "reasoning", "mmlu"},
+		"educational":     {"mmlu", "arc_easy", "truthfulqa"},
+		"math":           {"gsm8k", "math", "algebra"},
+	}
+	
+	relevantBenchmarks := benchmarkMapping[strings.ToLower(useCase)]
+	if len(relevantBenchmarks) == 0 {
+		// Default benchmarks for general capability assessment
+		relevantBenchmarks = []string{"mmlu", "hellaswag", "arc_challenge"}
+	}
+	
+	// Find the best score among relevant benchmarks
+	bestScore := 0.0
+	scoresFound := 0
+	
+	for _, benchmark := range relevantBenchmarks {
+		for benchName, score := range model.BenchmarkScores {
+			if strings.Contains(strings.ToLower(benchName), strings.ToLower(benchmark)) {
+				normalizedScore := engine.normalizeBenchmarkScore(benchName, score)
+				if normalizedScore > bestScore {
+					bestScore = normalizedScore
+				}
+				scoresFound++
+			}
+		}
+	}
+	
+	if scoresFound == 0 {
+		// No relevant benchmarks found, try any available benchmark
+		for benchName, score := range model.BenchmarkScores {
+			normalizedScore := engine.normalizeBenchmarkScore(benchName, score)
+			if normalizedScore > bestScore {
+				bestScore = normalizedScore
+			}
+		}
+		
+		if bestScore > 0 {
+			return bestScore * 0.7 // Reduce score since it's not task-specific
+		}
+		
+		return 0.5 // Neutral if no benchmark data at all
+	}
+	
+	return bestScore
+}
+
+// normalizeBenchmarkScore converts benchmark scores to 0-1 scale
+func (engine *EnhancedRecommendationEngine) normalizeBenchmarkScore(benchmarkName string, score float64) float64 {
+	// Benchmark-specific normalization (these could be loaded from config)
+	benchmarkMaxScores := map[string]float64{
+		"humaneval":      100.0,
+		"swe_bench":      100.0,
+		"gsm8k":          100.0,
+		"math":           100.0,
+		"mmlu":           100.0,
+		"arc_challenge":  100.0,
+		"arc_easy":       100.0,
+		"hellaswag":      100.0,
+		"truthfulqa":     100.0,
+		"mbpp":           100.0,
+		"code_contests":  100.0,
+	}
+	
+	// Find matching benchmark
+	maxScore := 100.0 // Default assumption
+	for bench, max := range benchmarkMaxScores {
+		if strings.Contains(strings.ToLower(benchmarkName), bench) {
+			maxScore = max
+			break
+		}
+	}
+	
+	// Normalize to 0-1 scale
+	normalized := score / maxScore
+	if normalized > 1.0 {
+		normalized = 1.0
+	}
+	if normalized < 0.0 {
+		normalized = 0.0
+	}
+	
+	return normalized
+}
+
+// calculateCapabilityScore uses enhanced capability data
+func (engine *EnhancedRecommendationEngine) calculateCapabilityScore(
+	model models.ModelProfile,
+	classification *ClassifierResponse,
+) float64 {
+	
+	useCase := classification.PrimaryUseCase
+	if classification.FinalCategory != "" {
+		useCase = classification.FinalCategory
+	}
+	
+	// Check enhanced capabilities first
+	if model.EnhancedCapabilities != nil {
+		if capability, exists := model.EnhancedCapabilities[useCase]; exists {
+			// Weight by confidence and freshness
+			confidenceWeight := capability.Confidence
+			
+			// Boost if data is fresh (within 30 days)
+			freshnessBoost := 1.0
+			if capability.LastUpdated != nil {
+				if lastUpdatedTime, err := time.Parse(time.RFC3339, *capability.LastUpdated); err == nil {
+					daysSinceUpdate := time.Since(lastUpdatedTime).Hours() / 24
+					if daysSinceUpdate <= 30 {
+						freshnessBoost = 1.1
+					} else if daysSinceUpdate > 90 {
+						freshnessBoost = 0.9
+					}
+				}
+			}
+			
+			return capability.Score * confidenceWeight * freshnessBoost
+		}
+	}
+	
+	// Fallback to basic capabilities
+	if capability, exists := model.Capabilities[strings.ToLower(useCase)]; exists {
+		return capability
+	}
+	
+	// Try semantic matching for similar categories
+	similarCategories := engine.getSimilarCategories(useCase)
+	bestScore := 0.0
+	
+	for _, similar := range similarCategories {
+		if capability, exists := model.Capabilities[strings.ToLower(similar)]; exists {
+			score := capability * 0.8 // Reduced score for similar match
+			if score > bestScore {
+				bestScore = score
+			}
+		}
+	}
+	
+	if bestScore > 0 {
+		return bestScore
+	}
+	
+	return 0.4 // Default score if no capability match
+}
+
+// getSimilarCategories returns semantically similar categories
+func (engine *EnhancedRecommendationEngine) getSimilarCategories(category string) []string {
+	similarityMap := map[string][]string{
+		"coding":           {"programming", "development", "software"},
+		"creative_writing": {"writing", "creative", "content"},
+		"reasoning":        {"logic", "analysis", "problem_solving"},
+		"conversation":     {"chat", "dialogue", "communication"},
+		"analysis":         {"reasoning", "research", "evaluation"},
+		"educational":      {"teaching", "learning", "explanation"},
+		"math":            {"mathematics", "calculation", "quantitative"},
+	}
+	
+	if similar, exists := similarityMap[strings.ToLower(category)]; exists {
+		return similar
+	}
+	
+	return []string{}
+}
+
+// calculateQualityScore assesses overall model quality
+func (engine *EnhancedRecommendationEngine) calculateQualityScore(model models.ModelProfile) float64 {
+	score := 0.5 // Base score
+	
+	// Factor 1: Usage metrics (if available)
+	if model.RoutingMetadata != nil {
+		if model.RoutingMetadata.UsageCount > 100 {
+			score += 0.1 // Boost for well-tested models
+		}
+		
+		if model.RoutingMetadata.SuccessRate > 0.8 {
+			score += (model.RoutingMetadata.SuccessRate - 0.8) * 0.5
+		}
+		
+		if model.RoutingMetadata.AverageRating > 4.0 {
+			score += (model.RoutingMetadata.AverageRating - 4.0) * 0.2
+		}
+	}
+	
+	// Factor 2: Provider reputation (simple heuristic)
+	reputationBoost := map[string]float64{
+		"openai":      0.15,
+		"anthropic":   0.15,
+		"google":      0.1,
+		"mistral":     0.05,
+		"cohere":      0.05,
+	}
+	
+	if boost, exists := reputationBoost[strings.ToLower(model.Provider)]; exists {
+		score += boost
+	}
+	
+	// Factor 3: Latency penalty (slower models lose points)
+	if model.AvgLatencyMs > 5000 {
+		score -= 0.1
+	} else if model.AvgLatencyMs < 1000 {
+		score += 0.05
+	}
+	
+	// Ensure score stays within bounds
+	if score > 1.0 {
+		score = 1.0
+	}
+	if score < 0.0 {
+		score = 0.0
+	}
+	
+	return score
+}
+
+// STAGE 3: Cost-Benefit Analysis & Final Selection
+func (engine *EnhancedRecommendationEngine) stage3CostBenefitAnalysis(
+	candidates []CandidateModel,
+	preference RecommendationPreference,
+) (CandidateModel, string) {
+	
+	if len(candidates) == 0 {
+		return CandidateModel{}, "no candidates available"
+	}
+	
+	switch preference {
+	case PreferencePerformance:
+		return engine.selectBestPerformance(candidates)
+		
+	case PreferenceBalanced:
+		return engine.selectBalanced(candidates)
+		
+	case PreferenceCostSaver:
+		return engine.selectCostSaver(candidates)
+		
+	default:
+		return engine.selectBalanced(candidates) // Default to balanced
+	}
+}
+
+// selectBestPerformance chooses the highest scoring model regardless of cost
+func (engine *EnhancedRecommendationEngine) selectBestPerformance(candidates []CandidateModel) (CandidateModel, string) {
+	best := candidates[0] // Already sorted by score
+	
+	reasoning := fmt.Sprintf(
+		"Selected highest performing model with match score %.3f. "+
+		"Performance-focused selection ignores cost considerations.",
+		best.MatchScore,
+	)
+	
+	return best, reasoning
+}
+
+// selectBalanced finds models within 90% of top score and picks cheapest among them
+func (engine *EnhancedRecommendationEngine) selectBalanced(candidates []CandidateModel) (CandidateModel, string) {
+	if len(candidates) == 0 {
+		return CandidateModel{}, "no candidates"
+	}
+	
+	topScore := candidates[0].MatchScore
+	threshold := topScore * engine.balancedThreshold
+	
+	// Find all candidates above threshold
+	var qualified []CandidateModel
+	for _, candidate := range candidates {
+		if candidate.MatchScore >= threshold {
+			qualified = append(qualified, candidate)
+		}
+	}
+	
+	if len(qualified) == 0 {
+		qualified = candidates[:1] // At least include the top candidate
+	}
+	
+	// Among qualified candidates, pick the cheapest
+	cheapest := qualified[0]
+	for _, candidate := range qualified[1:] {
+		if candidate.Model.CostInPer1K < cheapest.Model.CostInPer1K {
+			cheapest = candidate
+		}
+	}
+	
+	savingsPercent := 0.0
+	if len(qualified) > 1 {
+		topCost := candidates[0].Model.CostInPer1K
+		if topCost > 0 {
+			savingsPercent = ((topCost - cheapest.Model.CostInPer1K) / topCost) * 100
+		}
+	}
+	
+	reasoning := fmt.Sprintf(
+		"Selected cost-optimized model with match score %.3f (%.1f%% of top score). "+
+		"Achieves %.1f%% cost savings vs highest performing model while maintaining excellent quality.",
+		cheapest.MatchScore,
+		(cheapest.MatchScore/topScore)*100,
+		savingsPercent,
+	)
+	
+	return cheapest, reasoning
+}
+
+// selectCostSaver picks the cheapest model that meets minimum quality standards
+func (engine *EnhancedRecommendationEngine) selectCostSaver(candidates []CandidateModel) (CandidateModel, string) {
+	// Filter candidates that meet minimum acceptable quality
+	var acceptable []CandidateModel
+	for _, candidate := range candidates {
+		if candidate.MatchScore >= engine.minimumAcceptable {
+			acceptable = append(acceptable, candidate)
+		}
+	}
+	
+	if len(acceptable) == 0 {
+		// If no candidate meets minimum, pick the best available
+		best := candidates[0]
+		reasoning := fmt.Sprintf(
+			"No models met minimum quality threshold (%.2f). "+
+			"Selected best available model with match score %.3f.",
+			engine.minimumAcceptable,
+			best.MatchScore,
+		)
+		return best, reasoning
+	}
+	
+	// Among acceptable models, pick the cheapest
+	cheapest := acceptable[0]
+	for _, candidate := range acceptable[1:] {
+		if candidate.Model.CostInPer1K < cheapest.Model.CostInPer1K {
+			cheapest = candidate
+		}
+	}
+	
+	topCost := candidates[0].Model.CostInPer1K
+	savingsPercent := 0.0
+	if topCost > 0 {
+		savingsPercent = ((topCost - cheapest.Model.CostInPer1K) / topCost) * 100
+	}
+	
+	reasoning := fmt.Sprintf(
+		"Selected most cost-effective model with match score %.3f "+
+		"(above %.2f minimum threshold). Achieves %.1f%% cost savings.",
+		cheapest.MatchScore,
+		engine.minimumAcceptable,
+		savingsPercent,
+	)
+	
+	return cheapest, reasoning
+}

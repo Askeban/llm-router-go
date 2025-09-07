@@ -1,0 +1,223 @@
+# Enhanced Ingestor Service Configuration
+# This file configures all components of the intelligent model data consolidation system
+
+# Service Configuration
+service:
+  name: "enhanced-ingestor-service"
+  version: "1.0.0"
+  host: "0.0.0.0"
+  port: 8001
+  debug: false
+  log_level: "INFO"
+
+# Data Sources Configuration
+data_sources:
+  # Static base models file
+  static:
+    path: "internal/models.json"
+    enabled: true
+    priority: 1
+    
+  # Scraped benchmark data
+  scraped:
+    directory: "configs"
+    pattern: "trun*.json"
+    enabled: true
+    priority: 2
+    refresh_interval: 86400  # 24 hours in seconds
+    
+  # Analytics AI API
+  api:
+    url: "https://api.analytics.ai"
+    enabled: true
+    priority: 3
+    timeout: 30
+    rate_limit: 100  # requests per hour
+    retry_attempts: 3
+    retry_delay: 1  # seconds
+
+# Cache Configuration
+cache:
+  # Redis configuration
+  redis:
+    host: "localhost"
+    port: 6379
+    db: 0
+    password: ""
+    ssl: false
+    ttl: 3600  # 1 hour
+    
+  # Local cache configuration
+  local:
+    max_size: 1000
+    ttl: 300  # 5 minutes
+    
+  # Cache policies
+  policies:
+    models: 3600      # Cache model data for 1 hour
+    benchmarks: 7200  # Cache benchmark data for 2 hours
+    api_responses: 1800  # Cache API responses for 30 minutes
+
+# Processing Configuration
+processing:
+  # Batch processing
+  batch_size: 50
+  max_workers: 4
+  timeout: 300  # 5 minutes
+  
+  # Quality thresholds
+  quality_thresholds:
+    min_confidence: 0.7
+    max_anomaly_score: 0.3
+    required_fields: ["id", "provider", "display_name"]
+    
+  # Consolidation weights
+  consolidation_weights:
+    static: 0.3
+    scraped: 0.4
+    api: 0.3
+    
+  # Semantic matching
+  semantic_matching:
+    similarity_threshold: 0.8
+    embedding_model: "all-MiniLM-L6-v2"
+    max_candidates: 10
+
+# Data Quality Configuration
+data_quality:
+  # Validation rules
+  validation:
+    enforce_required_fields: true
+    validate_data_types: true
+    check_value_ranges: true
+    detect_duplicates: true
+    
+  # Auto-correction
+  auto_correction:
+    enabled: true
+    confidence_threshold: 0.8
+    max_corrections_per_model: 5
+    
+  # Anomaly detection
+  anomaly_detection:
+    enabled: true
+    sensitivity: 0.7
+    methods: ["isolation_forest", "statistical"]
+    
+# Feedback Loop Configuration
+feedback_loop:
+  enabled: true
+  
+  # Performance tracking
+  performance_tracking:
+    min_samples: 10
+    confidence_threshold: 0.8
+    adjustment_factor: 0.1
+    
+  # Learning parameters
+  learning:
+    adaptation_rate: 0.05
+    decay_factor: 0.95
+    min_performance_threshold: 0.7
+
+# Monitoring Configuration
+monitoring:
+  # Metrics collection
+  metrics:
+    enabled: true
+    collection_interval: 60  # seconds
+    retention_period: 2592000  # 30 days
+    
+  # Performance monitoring
+  performance:
+    track_latency: true
+    track_throughput: true
+    track_error_rates: true
+    track_cache_hit_rates: true
+    
+  # Alerting thresholds
+  alerts:
+    error_rate_threshold: 0.05  # 5%
+    latency_threshold: 5000  # 5 seconds
+    cache_hit_rate_threshold: 0.8  # 80%
+    disk_usage_threshold: 0.9  # 90%
+
+# Security Configuration
+security:
+  # API security
+  api:
+    require_api_key: false
+    allowed_origins: ["*"]
+    rate_limiting: true
+    
+  # Data security
+  data:
+    encrypt_sensitive_fields: false
+    audit_data_access: true
+    sanitize_logs: true
+
+# Output Configuration
+output:
+  # Main output file
+  file_path: "enhanced_models.json"
+  
+  # Backup configuration
+  backup:
+    enabled: true
+    retention_count: 5
+    directory: "backups"
+    
+  # Format options
+  format:
+    indent: 2
+    sort_keys: true
+    ensure_ascii: false
+
+# Development Configuration
+development:
+  # Debug options
+  debug_mode: false
+  verbose_logging: false
+  profile_performance: false
+  
+  # Test data
+  use_test_data: false
+  test_data_path: "test_data"
+  
+  # Mock services
+  mock_api: false
+  mock_redis: false
+
+# Production Configuration
+production:
+  # Resource limits
+  max_memory_mb: 2048
+  max_cpu_percent: 80
+  
+  # Scaling
+  auto_scaling:
+    enabled: false
+    min_instances: 1
+    max_instances: 5
+    cpu_threshold: 70
+    
+  # Health checks
+  health_check:
+    interval: 30
+    timeout: 5
+    retries: 3
+    
+  # Graceful shutdown
+  shutdown:
+    timeout: 30
+    wait_for_completion: true
+
+# Feature Flags
+features:
+  semantic_model_discovery: true
+  benchmark_capability_mapping: true
+  confidence_weighted_merging: true
+  anomaly_detection: true
+  performance_feedback: true
+  incremental_updates: true
+  advanced_caching: true

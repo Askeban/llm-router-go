@@ -17,21 +17,30 @@ func (o *OpenAI) Generate(ctx context.Context, prompt string, params map[string]
 	if o.APIKey == "" {
 		o.APIKey = os.Getenv("OPENAI_API_KEY")
 	}
+	if o.APIKey == "" {
+		return "", Usage{}, fmt.Errorf("OpenAI API key not configured")
+	}
 	if o.BaseURL == "" {
 		o.BaseURL = "https://api.openai.com"
 	}
 	model := strings.TrimPrefix(o.ModelID, "openai-")
 	url := o.BaseURL + "/v1/chat/completions"
 
-	body, _ := json.Marshal(map[string]any{
+	body, err := json.Marshal(map[string]any{
 		"model": model,
 		"messages": []map[string]string{
 			{"role": "user", "content": prompt},
 		},
 		"temperature": 0.2,
 	})
+	if err != nil {
+		return "", Usage{}, fmt.Errorf("marshal request: %w", err)
+	}
 
-	req, _ := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+	if err != nil {
+		return "", Usage{}, fmt.Errorf("create request: %w", err)
+	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+o.APIKey)
 

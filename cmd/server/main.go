@@ -45,7 +45,12 @@ func main() {
 	}
 
 	r := gin.Default()
+	
+	// Register original routes for backward compatibility
 	h.RegisterRoutes(r, cfg, db)
+	
+	// TODO: Register enhanced routes with the new recommendation engine
+	// h.RegisterEnhancedRoutes(r, cfg, db)
 
 	addr := cfg.Port
 	if addr == "" {

@@ -17,18 +17,27 @@ func (a *Anthropic) Generate(ctx context.Context, prompt string, params map[stri
 	if a.APIKey == "" {
 		a.APIKey = os.Getenv("ANTHROPIC_API_KEY")
 	}
+	if a.APIKey == "" {
+		return "", Usage{}, fmt.Errorf("Anthropic API key not configured")
+	}
 	model := strings.TrimPrefix(a.ModelID, "anthropic-")
 	url := "https://api.anthropic.com/v1/messages"
 
-	body, _ := json.Marshal(map[string]any{
+	body, err := json.Marshal(map[string]any{
 		"model":      model,
 		"max_tokens": 1024,
 		"messages": []map[string]any{
 			{"role": "user", "content": prompt},
 		},
 	})
+	if err != nil {
+		return "", Usage{}, fmt.Errorf("marshal request: %w", err)
+	}
 
-	req, _ := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+	if err != nil {
+		return "", Usage{}, fmt.Errorf("create request: %w", err)
+	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-api-key", a.APIKey)
 	req.Header.Set("anthropic-version", "2023-06-01")

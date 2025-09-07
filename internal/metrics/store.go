@@ -18,7 +18,10 @@ type Store struct{ db *sql.DB }
 
 func NewStore(db *sql.DB) *Store { return &Store{db: db} }
 func (s *Store) UpsertMetrics(ctx context.Context, source string, ms []NormalizedMetric) error {
-	tx, _ := s.db.BeginTx(ctx, nil)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
 	defer tx.Rollback()
 	now := time.Now().Unix()
 	for _, m := range ms {

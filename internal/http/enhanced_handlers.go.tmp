@@ -1,0 +1,566 @@
+package http
+
+import (
+	"context"
+	"database/sql"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/gin-gonic/gin"
+
+	"github.com/Askeban/llm-router-go/internal/config"
+	"github.com/Askeban/llm-router-go/internal/models"
+	"github.com/Askeban/llm-router-go/internal/providers"
+	"github.com/Askeban/llm-router-go/internal/recommendation"
+)
+
+// Enhanced route request with full constraint support
+type EnhancedRouteRequest struct {
+	Prompt      string                                `json:"prompt"`
+	Mode        string                                `json:"mode"` // "recommend" | "generate"
+	Constraints *recommendation.CustomerConstraints   `json:"constraints,omitempty"`
+	Preference  recommendation.RecommendationPreference `json:"preference,omitempty"`
+	// Legacy compatibility
+	LegacyConstraints map[string]any `json:"legacy_constraints,omitempty"`
+}
+
+// Enhanced route response with full transparency
+type EnhancedRouteResponse struct {
+	Classification       *recommendation.ClassifierResponse `json:"classification"`
+	Recommendation       *recommendation.RecommendationResult `json:"recommendation"`
+	ClassificationTimeMs int64                              `json:"classification_time_ms"`
+	RecommendationTimeMs int64                              `json:"recommendation_time_ms"`
+	TotalTimeMs          int64                              `json:"total_time_ms"`
+	
+	// Generation results (if mode = "generate")
+	ModelUsed    *models.ModelProfile `json:"model_used,omitempty"`
+	Output       string               `json:"output,omitempty"`
+	Usage        map[string]any       `json:"usage,omitempty"`
+	GenerationTimeMs int64            `json:"generation_time_ms,omitempty"`
+}
+
+// Recommendation insight request
+type RecommendationInsightRequest struct {
+	Prompt      string                                `json:"prompt"`
+	Constraints *recommendation.CustomerConstraints   `json:"constraints,omitempty"`
+	Preference  recommendation.RecommendationPreference `json:"preference,omitempty"`
+	TopN        int                                   `json:"top_n,omitempty"`
+}
+
+// RegisterEnhancedRoutes adds the new enhanced recommendation endpoints
+func RegisterEnhancedRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
+	profiles := models.NewProfiles(db, nil)
+	reg := providers.NewRegistry(cfg)
+	
+	// Create enhanced recommendation engine
+	enhancedEngine := recommendation.NewEnhancedRecommendationEngine(cfg.ClassifierURL)
+	
+	// Enhanced routing endpoint (main customer-facing API)
+	r.POST("/route/enhanced", func(c *gin.Context) {
+		handleEnhancedRoute(c, profiles, reg, enhancedEngine)
+	})
+	
+	// Recommendation insights endpoint (for analysis and debugging)
+	r.POST("/insights/recommendation", func(c *gin.Context) {
+		handleRecommendationInsights(c, profiles, enhancedEngine)
+	})
+	
+	// Model comparison endpoint
+	r.POST("/compare/models", func(c *gin.Context) {
+		handleModelComparison(c, profiles, enhancedEngine)
+	})
+	
+	// Recommendation benchmarking endpoint
+	r.POST("/benchmark/recommendation", func(c *gin.Context) {
+		handleRecommendationBenchmark(c, profiles, enhancedEngine)
+	})
+	
+	// A/B testing endpoint for comparing old vs new recommendation
+	r.POST("/test/recommendation", func(c *gin.Context) {
+		handleRecommendationABTest(c, profiles, reg, enhancedEngine, cfg)
+	})
+}
+
+// handleEnhancedRoute handles the main enhanced routing request
+func handleEnhancedRoute(c *gin.Context, profiles *models.Profiles, reg *providers.Registry, engine *recommendation.EnhancedRecommendationEngine) {
+	var req EnhancedRouteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request: " + err.Error()})
+		return
+	}
+	
+	if strings.TrimSpace(req.Prompt) == "" {
+		c.JSON(400, gin.H{"error": "prompt required"})
+		return
+	}
+	
+	startTime := time.Now()
+	
+	// Default values
+	if req.Mode == "" {
+		req.Mode = "recommend"
+	}
+	if req.Preference == "" {
+		req.Preference = recommendation.PreferenceBalanced
+	}
+	
+	// Load models
+	mods, err := profiles.ListModels(context.Background())
+	if err != nil {
+		c.JSON(500, gin.H{"error": "failed to load models: " + err.Error()})
+		return
+	}
+	
+	if len(mods) == 0 {
+		c.JSON(500, gin.H{"error": "no models available"})
+		return
+	}
+	
+	// Get recommendation using enhanced engine
+	recommendationStart := time.Now()
+	result, err := engine.RecommendModel(req.Prompt, mods, req.Constraints, req.Preference)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "recommendation failed: " + err.Error()})
+		return
+	}
+	recommendationTime := time.Since(recommendationStart).Milliseconds()
+	
+	// Prepare response
+	response := EnhancedRouteResponse{
+		Recommendation:       result,
+		RecommendationTimeMs: recommendationTime,
+		TotalTimeMs:          time.Since(startTime).Milliseconds(),
+	}
+	
+	// If mode is "recommend", return just the recommendation
+	if req.Mode == "recommend" {
+		c.JSON(200, response)
+		return
+	}
+	
+	// If mode is "generate", use the recommended model to generate
+	generationStart := time.Now()
+	
+	client, err := reg.ClientFor(result.RecommendedModel.ID)
+	if err != nil {
+		c.JSON(500, gin.H{
+			"error": "failed to get client for recommended model: " + err.Error(),
+			"recommendation": result,
+		})
+		return
+	}
+	
+	// Convert constraints to legacy format for provider
+	legacyConstraints := req.LegacyConstraints
+	if legacyConstraints == nil {
+		legacyConstraints = make(map[string]any)
+	}
+	
+	output, usage, err := client.Generate(c.Request.Context(), req.Prompt, legacyConstraints)
+	if err != nil {
+		c.JSON(500, gin.H{
+			"error": "generation failed: " + err.Error(),
+			"recommendation": result,
+		})
+		return
+	}
+	
+	response.ModelUsed = &result.RecommendedModel
+	response.Output = output
+	response.Usage = usage
+	response.GenerationTimeMs = time.Since(generationStart).Milliseconds()
+	response.TotalTimeMs = time.Since(startTime).Milliseconds()
+	
+	c.JSON(200, response)
+}
+
+// handleRecommendationInsights provides detailed insights into recommendation process
+func handleRecommendationInsights(c *gin.Context, profiles *models.Profiles, engine *recommendation.EnhancedRecommendationEngine) {
+	var req RecommendationInsightRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request: " + err.Error()})
+		return
+	}
+	
+	if strings.TrimSpace(req.Prompt) == "" {
+		c.JSON(400, gin.H{"error": "prompt required"})
+		return
+	}
+	
+	// Default values
+	if req.TopN <= 0 {
+		req.TopN = 5
+	}
+	if req.Preference == "" {
+		req.Preference = recommendation.PreferenceBalanced
+	}
+	
+	// Load models
+	mods, err := profiles.ListModels(context.Background())
+	if err != nil {
+		c.JSON(500, gin.H{"error": "failed to load models: " + err.Error()})
+		return
+	}
+	
+	// Get recommendation with full details
+	result, err := engine.RecommendModel(req.Prompt, mods, req.Constraints, req.Preference)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "recommendation failed: " + err.Error()})
+		return
+	}
+	
+	// Prepare detailed insights
+	insights := gin.H{
+		"prompt_analysis": gin.H{
+			"length": len(req.Prompt),
+			"word_count": len(strings.Fields(req.Prompt)),
+		},
+		"filtering_results": gin.H{
+			"total_models": len(mods),
+			"models_filtered": result.Stage1Filtered,
+			"models_remaining": len(result.Stage2Candidates),
+			"filtering_efficiency": float64(result.Stage1Filtered) / float64(len(mods)),
+		},
+		"scoring_breakdown": gin.H{
+			"top_candidates": result.Stage2Candidates[:min(req.TopN, len(result.Stage2Candidates))],
+			"score_distribution": calculateScoreDistribution(result.Stage2Candidates),
+		},
+		"selection_analysis": gin.H{
+			"strategy": result.Strategy,
+			"reasoning": result.Reasoning,
+			"final_model": result.RecommendedModel,
+			"alternatives": result.AlternativeModels,
+		},
+		"performance_metrics": gin.H{
+			"processing_time_ms": result.ProcessingTimeMs,
+			"classifier_used": result.ClassifierUsed,
+			"constraints_applied": result.ConstraintsApplied,
+		},
+	}
+	
+	c.JSON(200, gin.H{
+		"recommendation": result,
+		"insights": insights,
+	})
+}
+
+// handleModelComparison compares multiple models for a given prompt
+func handleModelComparison(c *gin.Context, profiles *models.Profiles, engine *recommendation.EnhancedRecommendationEngine) {
+	type ComparisonRequest struct {
+		Prompt   string   `json:"prompt"`
+		ModelIDs []string `json:"model_ids"`
+	}
+	
+	var req ComparisonRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request: " + err.Error()})
+		return
+	}
+	
+	if strings.TrimSpace(req.Prompt) == "" {
+		c.JSON(400, gin.H{"error": "prompt required"})
+		return
+	}
+	
+	if len(req.ModelIDs) == 0 {
+		c.JSON(400, gin.H{"error": "model_ids required"})
+		return
+	}
+	
+	// Load all models
+	allMods, err := profiles.ListModels(context.Background())
+	if err != nil {
+		c.JSON(500, gin.H{"error": "failed to load models: " + err.Error()})
+		return
+	}
+	
+	// Filter to requested models
+	var models []models.ModelProfile
+	modelMap := make(map[string]models.ModelProfile)
+	for _, mod := range allMods {
+		modelMap[mod.ID] = mod
+	}
+	
+	for _, id := range req.ModelIDs {
+		if mod, exists := modelMap[id]; exists {
+			models = append(models, mod)
+		}
+	}
+	
+	if len(models) == 0 {
+		c.JSON(400, gin.H{"error": "no valid models found"})
+		return
+	}
+	
+	// Force these models through the recommendation process
+	constraints := &recommendation.CustomerConstraints{
+		RequiredModels: req.ModelIDs,
+	}
+	
+	result, err := engine.RecommendModel(req.Prompt, models, constraints, recommendation.PreferencePerformance)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "comparison failed: " + err.Error()})
+		return
+	}
+	
+	// Prepare comparison results
+	comparisons := make([]gin.H, len(result.Stage2Candidates))
+	for i, candidate := range result.Stage2Candidates {
+		comparisons[i] = gin.H{
+			"model": candidate.Model,
+			"match_score": candidate.MatchScore,
+			"scoring_details": candidate.Details,
+			"rank": i + 1,
+			"cost_per_1k": candidate.Model.CostInPer1K,
+			"avg_latency_ms": candidate.Model.AvgLatencyMs,
+		}
+	}
+	
+	c.JSON(200, gin.H{
+		"prompt": req.Prompt,
+		"models_compared": len(models),
+		"comparisons": comparisons,
+		"recommended": result.RecommendedModel.ID,
+		"processing_time_ms": result.ProcessingTimeMs,
+	})
+}
+
+// handleRecommendationBenchmark benchmarks the recommendation system
+func handleRecommendationBenchmark(c *gin.Context, profiles *models.Profiles, engine *recommendation.EnhancedRecommendationEngine) {
+	type BenchmarkRequest struct {
+		TestPrompts []string                               `json:"test_prompts"`
+		Constraints *recommendation.CustomerConstraints    `json:"constraints,omitempty"`
+		Preferences []recommendation.RecommendationPreference `json:"preferences,omitempty"`
+	}
+	
+	var req BenchmarkRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request: " + err.Error()})
+		return
+	}
+	
+	if len(req.TestPrompts) == 0 {
+		c.JSON(400, gin.H{"error": "test_prompts required"})
+		return
+	}
+	
+	// Default preferences
+	if len(req.Preferences) == 0 {
+		req.Preferences = []recommendation.RecommendationPreference{
+			recommendation.PreferencePerformance,
+			recommendation.PreferenceBalanced,
+			recommendation.PreferenceCostSaver,
+		}
+	}
+	
+	// Load models
+	mods, err := profiles.ListModels(context.Background())
+	if err != nil {
+		c.JSON(500, gin.H{"error": "failed to load models: " + err.Error()})
+		return
+	}
+	
+	startTime := time.Now()
+	results := make([]gin.H, 0)
+	
+	// Run benchmark
+	for i, prompt := range req.TestPrompts {
+		promptResults := gin.H{
+			"prompt_index": i,
+			"prompt": prompt[:min(100, len(prompt))] + "...", // Truncate for readability
+			"preferences": make([]gin.H, 0),
+		}
+		
+		for _, preference := range req.Preferences {
+			prefStart := time.Now()
+			
+			result, err := engine.RecommendModel(prompt, mods, req.Constraints, preference)
+			if err != nil {
+				promptResults["preferences"] = append(promptResults["preferences"].([]gin.H), gin.H{
+					"preference": preference,
+					"error": err.Error(),
+				})
+				continue
+			}
+			
+			prefResult := gin.H{
+				"preference": preference,
+				"recommended_model": result.RecommendedModel.ID,
+				"match_score": result.RecommendationScore,
+				"cost_per_1k": result.RecommendedModel.CostInPer1K,
+				"processing_time_ms": time.Since(prefStart).Milliseconds(),
+				"models_filtered": result.Stage1Filtered,
+				"candidates_scored": len(result.Stage2Candidates),
+			}
+			
+			promptResults["preferences"] = append(promptResults["preferences"].([]gin.H), prefResult)
+		}
+		
+		results = append(results, promptResults)
+	}
+	
+	totalTime := time.Since(startTime)
+	
+	c.JSON(200, gin.H{
+		"benchmark_results": results,
+		"summary": gin.H{
+			"total_prompts": len(req.TestPrompts),
+			"total_preferences": len(req.Preferences),
+			"total_recommendations": len(req.TestPrompts) * len(req.Preferences),
+			"total_time_ms": totalTime.Milliseconds(),
+			"avg_time_per_recommendation_ms": totalTime.Milliseconds() / int64(len(req.TestPrompts)*len(req.Preferences)),
+		},
+	})
+}
+
+// handleRecommendationABTest compares old vs new recommendation engines
+func handleRecommendationABTest(c *gin.Context, profiles *models.Profiles, reg *providers.Registry, enhancedEngine *recommendation.EnhancedRecommendationEngine, cfg *config.Config) {
+	type ABTestRequest struct {
+		Prompt      string                                `json:"prompt"`
+		Constraints *recommendation.CustomerConstraints   `json:"constraints,omitempty"`
+		Preference  recommendation.RecommendationPreference `json:"preference,omitempty"`
+	}
+	
+	var req ABTestRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request: " + err.Error()})
+		return
+	}
+	
+	if strings.TrimSpace(req.Prompt) == "" {
+		c.JSON(400, gin.H{"error": "prompt required"})
+		return
+	}
+	
+	// Default preference
+	if req.Preference == "" {
+		req.Preference = recommendation.PreferenceBalanced
+	}
+	
+	// Load models
+	mods, err := profiles.ListModels(context.Background())
+	if err != nil {
+		c.JSON(500, gin.H{"error": "failed to load models: " + err.Error()})
+		return
+	}
+	
+	// Test A: Old recommendation system (simplified simulation)
+	oldStart := time.Now()
+	// Note: This is a simplified simulation of the old system
+	// In a real implementation, you'd call the actual old system
+	oldBest := mods[0] // Simplified - just pick first model
+	for _, mod := range mods[1:] {
+		// Simple scoring based on cost (old system was cost-focused)
+		if mod.CostInPer1K < oldBest.CostInPer1K {
+			oldBest = mod
+		}
+	}
+	oldTime := time.Since(oldStart).Milliseconds()
+	
+	// Test B: New enhanced recommendation system
+	newStart := time.Now()
+	newResult, err := enhancedEngine.RecommendModel(req.Prompt, mods, req.Constraints, req.Preference)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "new system failed: " + err.Error()})
+		return
+	}
+	newTime := time.Since(newStart).Milliseconds()
+	
+	// Compare results
+	samePick := oldBest.ID == newResult.RecommendedModel.ID
+	costDifference := newResult.RecommendedModel.CostInPer1K - oldBest.CostInPer1K
+	costDifferencePercent := 0.0
+	if oldBest.CostInPer1K > 0 {
+		costDifferencePercent = (costDifference / oldBest.CostInPer1K) * 100
+	}
+	
+	c.JSON(200, gin.H{
+		"test_results": gin.H{
+			"old_system": gin.H{
+				"recommended_model": oldBest.ID,
+				"cost_per_1k": oldBest.CostInPer1K,
+				"processing_time_ms": oldTime,
+				"method": "simple_cost_optimization",
+			},
+			"new_system": gin.H{
+				"recommended_model": newResult.RecommendedModel.ID,
+				"cost_per_1k": newResult.RecommendedModel.CostInPer1K,
+				"match_score": newResult.RecommendationScore,
+				"processing_time_ms": newTime,
+				"strategy": newResult.Strategy,
+				"reasoning": newResult.Reasoning,
+				"models_analyzed": len(mods),
+				"models_filtered": newResult.Stage1Filtered,
+				"candidates_scored": len(newResult.Stage2Candidates),
+			},
+		},
+		"comparison": gin.H{
+			"same_recommendation": samePick,
+			"cost_difference": costDifference,
+			"cost_difference_percent": costDifferencePercent,
+			"performance_difference_ms": newTime - oldTime,
+			"new_system_advantages": []string{
+				"Multi-dimensional analysis",
+				"Constraint-based filtering",
+				"Benchmark-driven scoring",
+				"Customer preference optimization",
+				"Full transparency and reasoning",
+			},
+		},
+	})
+}
+
+// Helper functions
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func calculateScoreDistribution(candidates []recommendation.CandidateModel) gin.H {
+	if len(candidates) == 0 {
+		return gin.H{}
+	}
+	
+	scores := make([]float64, len(candidates))
+	for i, candidate := range candidates {
+		scores[i] = candidate.MatchScore
+	}
+	
+	// Calculate basic statistics
+	min_score := scores[0]
+	max_score := scores[0]
+	sum := 0.0
+	
+	for _, score := range scores {
+		if score < min_score {
+			min_score = score
+		}
+		if score > max_score {
+			max_score = score
+		}
+		sum += score
+	}
+	
+	avg := sum / float64(len(scores))
+	
+	// Calculate variance
+	variance := 0.0
+	for _, score := range scores {
+		variance += (score - avg) * (score - avg)
+	}
+	variance /= float64(len(scores))
+	
+	return gin.H{
+		"min": min_score,
+		"max": max_score,
+		"avg": avg,
+		"variance": variance,
+		"range": max_score - min_score,
+		"count": len(scores),
+	}
+}

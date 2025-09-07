@@ -35,6 +35,9 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 	profiles := models.NewProfiles(db, nil)
 	clf := classifier.New(cfg.ClassifierURL)
 	reg := providers.NewRegistry(cfg)
+	
+	// Register metrics lookup endpoint
+	registerMetricsLookup(r, store)
 
 	r.GET("/healthz", func(c *gin.Context) { c.JSON(200, gin.H{"ok": true}) })
 
@@ -136,8 +139,9 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 			}
 		}
 		norm := func(metric string, v float64) float64 {
-			min, max := minBy[metric], maxBy[metric]
-			if max <= min {
+			min, ok1 := minBy[metric]
+			max, ok2 := maxBy[metric]
+			if !ok1 || !ok2 || max <= min {
 				return 0
 			}
 			nv := (v - min) / (max - min)
@@ -187,6 +191,11 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 		}
 
 		best, ranking := recommendation.Rank(category, difficulty, mods, boost)
+		
+		if len(ranking) == 0 {
+			c.JSON(500, gin.H{"error": "no models available for recommendation"})
+			return
+		}
 
 		if rr.Mode == "recommend" {
 			c.JSON(200, gin.H{

@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Router System Health Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .services {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .service {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .service h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+            text-align: center;
+            margin: 10px 0;
+        }
+        .status.healthy {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status.unhealthy {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .status.loading {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .endpoint {
+            background-color: #f8f9fa;
+            padding: 5px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            margin: 5px 0;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        .test-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background-color: #0056b3;
+        }
+        #testResults {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .refresh-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Enhanced LLM Router System</h1>
+            <p>Microservices Health Dashboard</p>
+            <p><small>Last updated: <span id="lastUpdate">Loading...</span></small></p>
+        </div>
+
+        <button class="refresh-btn" onclick="checkAllServices()">🔄 Refresh</button>
+
+        <div class="services">
+            <div class="service">
+                <h3>🔀 Main Router Service</h3>
+                <div id="router-status" class="status loading">Checking...</div>
+                <div class="endpoint">http://localhost:8080</div>
+                <p><strong>Purpose:</strong> Main API gateway and routing logic</p>
+                <p><strong>Endpoints:</strong> /healthz, /route, /metrics</p>
+            </div>
+
+            <div class="service">
+                <h3>🧠 Enhanced Classifier</h3>
+                <div id="classifier-status" class="status loading">Checking...</div>
+                <div class="endpoint">http://localhost:5000</div>
+                <p><strong>Purpose:</strong> 4-phase prompt analysis and classification</p>
+                <p><strong>Endpoints:</strong> /classify, /classify/advanced, /feedback</p>
+            </div>
+
+            <div class="service">
+                <h3>📥 Enhanced Ingestor</h3>
+                <div id="ingestor-status" class="status loading">Checking...</div>
+                <div class="endpoint">http://localhost:8001</div>
+                <p><strong>Purpose:</strong> Data consolidation and model enhancement</p>
+                <p><strong>Endpoints:</strong> /status, /models, /update</p>
+            </div>
+
+            <div class="service">
+                <h3>💾 Redis Cache</h3>
+                <div id="redis-status" class="status loading">Checking...</div>
+                <div class="endpoint">redis://localhost:6379</div>
+                <p><strong>Purpose:</strong> Caching and performance optimization</p>
+                <p><strong>Status:</strong> Internal service</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🧪 System Testing</h3>
+            <p>Test the integrated functionality of the Enhanced LLM Router System:</p>
+            
+            <button class="test-button" onclick="testBasicRouting()">Test Basic Routing</button>
+            <button class="test-button" onclick="testClassification()">Test Classification</button>
+            <button class="test-button" onclick="testIngestor()">Test Ingestor</button>
+            <button class="test-button" onclick="testFullWorkflow()">Test Full Workflow</button>
+            
+            <div id="testResults"></div>
+        </div>
+    </div>
+
+    <script>
+        function updateStatus(serviceId, isHealthy, message = '') {
+            const element = document.getElementById(serviceId + '-status');
+            if (isHealthy) {
+                element.className = 'status healthy';
+                element.textContent = '✅ Healthy' + (message ? ' - ' + message : '');
+            } else {
+                element.className = 'status unhealthy';  
+                element.textContent = '❌ Unhealthy' + (message ? ' - ' + message : '');
+            }
+        }
+
+        async function checkService(serviceId, url) {
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    mode: 'cors',
+                    timeout: 5000
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    updateStatus(serviceId, true, `HTTP ${response.status}`);
+                    return true;
+                } else {
+                    updateStatus(serviceId, false, `HTTP ${response.status}`);
+                    return false;
+                }
+            } catch (error) {
+                updateStatus(serviceId, false, error.message);
+                return false;
+            }
+        }
+
+        async function checkAllServices() {
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
+            
+            // Check all services
+            const services = [
+                { id: 'router', url: '/proxy/router/healthz' },
+                { id: 'classifier', url: '/proxy/classifier/health' },
+                { id: 'ingestor', url: '/proxy/ingestor/health' }
+            ];
+
+            // For Redis, we can't check directly but we assume it's healthy if other services work
+            updateStatus('redis', true, 'Assuming healthy');
+
+            for (const service of services) {
+                await checkService(service.id, service.url);
+            }
+        }
+
+        async function testBasicRouting() {
+            const results = document.getElementById('testResults');
+            results.textContent = 'Testing basic routing...\n';
+            
+            try {
+                const response = await fetch('/proxy/router/route', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: 'Write a Python function to sort a list',
+                        mode: 'recommend'
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    results.textContent += `✅ Basic routing test passed!\n`;
+                    results.textContent += `Recommended: ${data.recommended_model?.display_name || 'Unknown'}\n`;
+                    results.textContent += `Category: ${data.classification?.category || 'Unknown'}\n`;
+                } else {
+                    results.textContent += `❌ Basic routing test failed: HTTP ${response.status}\n`;
+                }
+            } catch (error) {
+                results.textContent += `❌ Basic routing test error: ${error.message}\n`;
+            }
+        }
+
+        async function testClassification() {
+            const results = document.getElementById('testResults');
+            results.textContent = 'Testing classification...\n';
+            
+            try {
+                const response = await fetch('/proxy/classifier/classify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: 'Create a beautiful poem about artificial intelligence'
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    results.textContent += `✅ Classification test passed!\n`;
+                    results.textContent += `Category: ${data.primary_use_case}\n`;
+                    results.textContent += `Confidence: ${data.domain_confidence?.toFixed(2)}\n`;
+                } else {
+                    results.textContent += `❌ Classification test failed: HTTP ${response.status}\n`;
+                }
+            } catch (error) {
+                results.textContent += `❌ Classification test error: ${error.message}\n`;
+            }
+        }
+
+        async function testIngestor() {
+            const results = document.getElementById('testResults');
+            results.textContent = 'Testing ingestor...\n';
+            
+            try {
+                const response = await fetch('/proxy/ingestor/status');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    results.textContent += `✅ Ingestor test passed!\n`;
+                    results.textContent += `Status: ${data.status}\n`;
+                    results.textContent += `Models: ${data.total_models}\n`;
+                } else {
+                    results.textContent += `❌ Ingestor test failed: HTTP ${response.status}\n`;
+                }
+            } catch (error) {
+                results.textContent += `❌ Ingestor test error: ${error.message}\n`;
+            }
+        }
+
+        async function testFullWorkflow() {
+            const results = document.getElementById('testResults');
+            results.textContent = 'Testing full workflow...\n';
+            
+            // Run all tests in sequence
+            await testClassification();
+            results.textContent += '\n';
+            await testIngestor();
+            results.textContent += '\n';
+            await testBasicRouting();
+            
+            results.textContent += '\n🎉 Full workflow test completed!\n';
+        }
+
+        // Auto-refresh every 30 seconds
+        setInterval(checkAllServices, 30000);
+
+        // Initial load
+        checkAllServices();
+    </script>
+</body>
+</html>

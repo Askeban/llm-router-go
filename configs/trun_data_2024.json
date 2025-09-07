@@ -1,0 +1,98 @@
+{
+  "gpt-4": {
+    "benchmarks": {
+      "humaneval": {"score": 67.0, "date": "2024-01-15"},
+      "gsm8k": {"score": 92.0, "date": "2024-01-15"},
+      "mmlu": {"score": 86.4, "date": "2024-01-15"},
+      "arc_challenge": {"score": 96.3, "date": "2024-01-15"},
+      "hellaswag": {"score": 95.3, "date": "2024-01-15"},
+      "truthfulqa": {"score": 59.0, "date": "2024-01-15"},
+      "winogrande": {"score": 87.5, "date": "2024-01-15"}
+    },
+    "metadata": {
+      "source": "trun_data_2024.json",
+      "last_updated": "2024-01-15T10:00:00Z",
+      "evaluation_setup": "zero_shot"
+    }
+  },
+  "claude-3-opus": {
+    "benchmarks": {
+      "humaneval": {"score": 84.9, "date": "2024-03-01"},
+      "gsm8k": {"score": 95.0, "date": "2024-03-01"},
+      "mmlu": {"score": 86.8, "date": "2024-03-01"},
+      "arc_challenge": {"score": 95.4, "date": "2024-03-01"},
+      "hellaswag": {"score": 95.4, "date": "2024-03-01"},
+      "truthfulqa": {"score": 83.0, "date": "2024-03-01"},
+      "winogrande": {"score": 95.4, "date": "2024-03-01"}
+    },
+    "metadata": {
+      "source": "trun_data_2024.json", 
+      "last_updated": "2024-03-01T10:00:00Z",
+      "evaluation_setup": "zero_shot"
+    }
+  },
+  "claude-3-sonnet": {
+    "benchmarks": {
+      "humaneval": {"score": 73.0, "date": "2024-03-01"},
+      "gsm8k": {"score": 88.0, "date": "2024-03-01"},
+      "mmlu": {"score": 79.0, "date": "2024-03-01"},
+      "arc_challenge": {"score": 89.7, "date": "2024-03-01"},
+      "hellaswag": {"score": 89.0, "date": "2024-03-01"},
+      "truthfulqa": {"score": 78.0, "date": "2024-03-01"},
+      "winogrande": {"score": 89.0, "date": "2024-03-01"}
+    },
+    "metadata": {
+      "source": "trun_data_2024.json",
+      "last_updated": "2024-03-01T10:00:00Z", 
+      "evaluation_setup": "zero_shot"
+    }
+  },
+  "gpt-3.5-turbo": {
+    "benchmarks": {
+      "humaneval": {"score": 48.1, "date": "2024-01-10"},
+      "gsm8k": {"score": 57.1, "date": "2024-01-10"},
+      "mmlu": {"score": 70.0, "date": "2024-01-10"},
+      "arc_challenge": {"score": 85.2, "date": "2024-01-10"},
+      "hellaswag": {"score": 85.5, "date": "2024-01-10"},
+      "truthfulqa": {"score": 47.0, "date": "2024-01-10"},
+      "winogrande": {"score": 81.6, "date": "2024-01-10"}
+    },
+    "metadata": {
+      "source": "trun_data_2024.json",
+      "last_updated": "2024-01-10T10:00:00Z",
+      "evaluation_setup": "zero_shot"
+    }
+  },
+  "llama-2-70b-chat": {
+    "benchmarks": {
+      "humaneval": {"score": 45.0, "date": "2023-12-15"},
+      "gsm8k": {"score": 78.0, "date": "2023-12-15"},
+      "mmlu": {"score": 68.9, "date": "2023-12-15"},
+      "arc_challenge": {"score": 78.1, "date": "2023-12-15"},
+      "hellaswag": {"score": 87.3, "date": "2023-12-15"},
+      "truthfulqa": {"score": 45.0, "date": "2023-12-15"},
+      "winogrande": {"score": 80.5, "date": "2023-12-15"}
+    },
+    "metadata": {
+      "source": "trun_data_2024.json",
+      "last_updated": "2023-12-15T10:00:00Z",
+      "evaluation_setup": "zero_shot"
+    }
+  },
+  "mistral-large": {
+    "benchmarks": {
+      "humaneval": {"score": 45.1, "date": "2024-02-20"},
+      "gsm8k": {"score": 81.2, "date": "2024-02-20"},
+      "mmlu": {"score": 81.2, "date": "2024-02-20"},
+      "arc_challenge": {"score": 86.8, "date": "2024-02-20"},
+      "hellaswag": {"score": 87.6, "date": "2024-02-20"},
+      "truthfulqa": {"score": 65.0, "date": "2024-02-20"},
+      "winogrande": {"score": 85.7, "date": "2024-02-20"}
+    },
+    "metadata": {
+      "source": "trun_data_2024.json",
+      "last_updated": "2024-02-20T10:00:00Z",
+      "evaluation_setup": "zero_shot"
+    }
+  }
+}

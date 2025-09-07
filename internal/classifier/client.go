@@ -40,11 +40,25 @@ func New(base string) *Client {
 type req struct {
 	Prompt string `json:"prompt"`
 }
+// Legacy response for backward compatibility
 type resp struct {
 	Category   string  `json:"category"`
 	Difficulty string  `json:"difficulty"`
 	Confidence float64 `json:"confidence"`
 	Sentiment  string  `json:"sentiment,omitempty"`
+}
+
+// Enhanced response structure matching the new classifier
+type EnhancedResp struct {
+	PrimaryUseCase        string  `json:"primary_use_case"`
+	ComplexityScore       float64 `json:"complexity_score"`
+	CreativityScore       float64 `json:"creativity_score"`
+	TokenCountEstimate    int     `json:"token_count_estimate"`
+	UrgencyLevel          float64 `json:"urgency_level"`
+	OutputLengthEstimate  int     `json:"output_length_estimate"`
+	InteractionStyle      string  `json:"interaction_style"`
+	DomainConfidence      float64 `json:"domain_confidence"`
+	Difficulty            string  `json:"difficulty"`
 }
 
 // Classify returns (category, difficulty) to match existing call sites.
@@ -70,7 +84,30 @@ func (c *Client) ClassifyFull(ctx context.Context, prompt string) (resp, error) 
 	return c.localAnalyze(prompt), nil
 }
 
+// ClassifyEnhanced returns the full enhanced classification response
+func (c *Client) ClassifyEnhanced(ctx context.Context, prompt string) (EnhancedResp, error) {
+	if c.Base != "" {
+		if out, err := c.remoteEnhanced(ctx, prompt); err == nil && out.PrimaryUseCase != "" {
+			return *out, nil
+		}
+	}
+	// Fallback to local rules with mapping to enhanced format
+	local := c.localAnalyze(prompt)
+	return c.mapToEnhanced(local, prompt), nil
+}
+
 func (c *Client) remote(ctx context.Context, prompt string) (*resp, error) {
+	// Try enhanced endpoint first, then fallback to legacy
+	if enhanced, err := c.remoteEnhanced(ctx, prompt); err == nil {
+		// Convert enhanced response to legacy format
+		return &resp{
+			Category:   enhanced.PrimaryUseCase,
+			Difficulty: enhanced.Difficulty,
+			Confidence: enhanced.DomainConfidence,
+		}, nil
+	}
+	
+	// Fallback to legacy endpoint (for older classifier versions)
 	rb, _ := json.Marshal(req{Prompt: prompt})
 	u := strings.TrimRight(c.Base, "/") + "/classify"
 	hreq, _ := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(rb))
@@ -88,6 +125,95 @@ func (c *Client) remote(ctx context.Context, prompt string) (*resp, error) {
 		return nil, err
 	}
 	return &out, nil
+}
+
+func (c *Client) remoteEnhanced(ctx context.Context, prompt string) (*EnhancedResp, error) {
+	rb, _ := json.Marshal(req{Prompt: prompt})
+	u := strings.TrimRight(c.Base, "/") + "/classify"
+	hreq, _ := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(rb))
+	hreq.Header.Set("content-type", "application/json")
+	res, err := c.http.Do(hreq)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		return nil, errors.New("remote enhanced classify: non-200")
+	}
+	var out EnhancedResp
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// mapToEnhanced converts local rule-based analysis to enhanced format
+func (c *Client) mapToEnhanced(local resp, prompt string) EnhancedResp {
+	// Estimate token count (rough approximation)
+	tokenCount := len(strings.Fields(prompt)) * 4 / 3
+	
+	// Map complexity based on difficulty
+	var complexityScore float64
+	switch local.Difficulty {
+	case "easy":
+		complexityScore = 0.2
+	case "medium":
+		complexityScore = 0.5
+	case "hard":
+		complexityScore = 0.8
+	default:
+		complexityScore = 0.3
+	}
+	
+	// Basic creativity estimation
+	creativityScore := 0.3
+	if strings.Contains(strings.ToLower(prompt), "creative") || 
+		strings.Contains(strings.ToLower(prompt), "imagine") ||
+		strings.Contains(strings.ToLower(prompt), "story") {
+		creativityScore = 0.7
+	}
+	
+	// Basic urgency detection
+	urgencyLevel := 0.3
+	promptLower := strings.ToLower(prompt)
+	if strings.Contains(promptLower, "urgent") || 
+		strings.Contains(promptLower, "asap") ||
+		strings.Contains(promptLower, "immediately") {
+		urgencyLevel = 0.9
+	}
+	
+	// Estimate output length based on category
+	outputLength := 400
+	switch local.Category {
+	case "coding":
+		outputLength = 800
+	case "creative_writing":
+		outputLength = 1200
+	case "business":
+		outputLength = 600
+	case "chat":
+		outputLength = 200
+	}
+	
+	// Detect interaction style
+	interactionStyle := "direct"
+	if strings.Contains(promptLower, "please") || strings.Contains(promptLower, "could you") {
+		interactionStyle = "formal"
+	} else if strings.Contains(promptLower, "hey") || strings.Contains(promptLower, "hi") {
+		interactionStyle = "conversational"
+	}
+	
+	return EnhancedResp{
+		PrimaryUseCase:       local.Category,
+		ComplexityScore:      complexityScore,
+		CreativityScore:      creativityScore,
+		TokenCountEstimate:   tokenCount,
+		UrgencyLevel:         urgencyLevel,
+		OutputLengthEstimate: outputLength,
+		InteractionStyle:     interactionStyle,
+		DomainConfidence:     local.Confidence,
+		Difficulty:           local.Difficulty,
+	}
 }
 
 // -----------------------------------------------------------------------------

@@ -1,0 +1,35 @@
+[
+  {
+    "id": "gpt-4",
+    "provider": "openai",
+    "display_name": "GPT-4",
+    "api_alias": "gpt-4",
+    "context_window": 8192,
+    "cost_in_per_1k": 0.03,
+    "cost_out_per_1k": 0.06,
+    "avg_latency_ms": 2000,
+    "open_source": false
+  },
+  {
+    "id": "gpt-3.5-turbo",
+    "provider": "openai", 
+    "display_name": "GPT-3.5 Turbo",
+    "api_alias": "gpt-3.5-turbo",
+    "context_window": 4096,
+    "cost_in_per_1k": 0.001,
+    "cost_out_per_1k": 0.002,
+    "avg_latency_ms": 1500,
+    "open_source": false
+  },
+  {
+    "id": "claude-3-sonnet",
+    "provider": "anthropic",
+    "display_name": "Claude 3 Sonnet",
+    "api_alias": "claude-3-sonnet-20240229",
+    "context_window": 200000,
+    "cost_in_per_1k": 0.003,
+    "cost_out_per_1k": 0.015,
+    "avg_latency_ms": 2500,
+    "open_source": false
+  }
+]

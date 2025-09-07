@@ -1,0 +1,51 @@
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Development files
+*.tmp
+test_*
+simple_test.py
+test_suite.py
+run_tests.sh
+TESTING_RESULTS.md
+README_ENHANCED_SYSTEM.md
+
+# Go build artifacts
+router
+*.exe
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data files
+*.db
+*.sqlite
+data/
+cache/
+logs/
+
+# Temporary files
+*.log
+*.tmp
