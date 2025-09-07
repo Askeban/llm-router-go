@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # Redis for caching and performance optimizations
+  redis:
+    image: redis:7-alpine
+    container_name: llm-router-redis-test
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_test_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - llm-router-test-network
+
+  # Enhanced Ingestor Test Service
+  enhanced-ingestor:
+    build:
+      context: ./python/ingestor_service
+      dockerfile: Dockerfile.enhanced
+    container_name: llm-router-enhanced-ingestor-test
+    ports:
+      - "8002:8001"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - ANALYTICS_API_KEY=${ANALYTICS_API_KEY:-your-analytics-ai-api-key}
+      - MODELS_JSON_PATH=/app/data/models.json
+      - SCRAPED_DATA_DIR=/app/configs
+      - OUTPUT_PATH=/app/data/enhanced_models.json
+      - PORT=8001
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    volumes:
+      - enhanced_ingestor_test_data:/app/data
+      - enhanced_ingestor_test_cache:/app/cache
+      - ./configs:/app/configs:ro
+      - ./internal/models.json:/app/data/models.json:ro
+      - ./python/ingestor_service/config.yaml:/app/config.yaml:ro
+    networks:
+      - llm-router-test-network
+    restart: unless-stopped
+
+volumes:
+  redis_test_data:
+  enhanced_ingestor_test_data:
+  enhanced_ingestor_test_cache:
+
+networks:
+  llm-router-test-network:
+    driver: bridge

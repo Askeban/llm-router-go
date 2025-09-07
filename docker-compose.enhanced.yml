@@ -62,11 +62,28 @@ services:
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - ANALYTICS_API_KEY=${ANALYTICS_API_KEY:-}
+      - ANALYTICS_API_KEY=${ANALYTICS_API_KEY:-your-analytics-ai-api-key}
       - MODELS_JSON_PATH=/app/data/models.json
       - SCRAPED_DATA_DIR=/app/data/scraped
       - OUTPUT_PATH=/app/data/enhanced_models.json
       - ENABLE_FEEDBACK=true
+  
+  # Enhanced Ingestor Test Service (running on different port)
+  enhanced-ingestor:
+    build:
+      context: ./python/ingestor_service
+      dockerfile: Dockerfile.enhanced
+    container_name: llm-router-enhanced-ingestor
+    ports:
+      - "8002:8001"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - ANALYTICS_API_KEY=${ANALYTICS_API_KEY:-your-analytics-ai-api-key}
+      - MODELS_JSON_PATH=/app/data/models.json
+      - SCRAPED_DATA_DIR=/app/data/scraped
+      - OUTPUT_PATH=/app/data/enhanced_models.json
+      - PORT=8001
     depends_on:
       - redis
     healthcheck:
@@ -75,6 +92,12 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    volumes:
+      - enhanced_ingestor_data:/app/data
+      - enhanced_ingestor_cache:/app/cache
+      - ./configs:/app/configs:ro
+      - ./internal/models.json:/app/data/models.json:ro
+      - ./python/ingestor_service/config.yaml:/app/config.yaml:ro
     volumes:
       - ingestor_data:/app/data
       - ingestor_cache:/app/cache
@@ -138,6 +161,8 @@ volumes:
   ingestor_data:
   ingestor_cache:
   ingestor_backups:
+  enhanced_ingestor_data:
+  enhanced_ingestor_cache:
   classifier_cache:
   classifier_rules:
   classifier_feedback:
