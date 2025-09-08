@@ -1,26 +1,49 @@
 [
   {
-    "id": "openai-gpt-4o",
-    "provider": "openai",
-    "display_name": "OpenAI GPT-4o",
-    "context_window": 128000,
-    "cost_in_per_1k": 0.005,
-    "cost_out_per_1k": 0.015,
-    "avg_latency_ms": 2500,
+    "id": "anthropic-claude-3-opus",
+    "provider": "anthropic",
+    "display_name": "Claude 3 Opus",
+    "context_window": 200000,
+    "cost_in_per_1k": 0.015,
+    "cost_out_per_1k": 0.075,
+    "avg_latency_ms": 2800,
     "open_source": false,
     "tags": [
       "closed",
-      "general",
-      "vision"
+      "coding",
+      "reasoning",
+      "math"
     ],
     "capabilities": {
-      "coding": 0.92,
-      "reasoning": 0.92,
-      "writing": 0.9,
-      "support": 0.9,
-      "math": 0.9
+      "coding": 0.8490000000000001,
+      "math": 0.95,
+      "reasoning": 0.86,
+      "writing": 0.7,
+      "support": 0.7
     },
-    "notes": "High performance general model"
+    "notes": "Enhanced with benchmark data from trun_data_2024.json"
+  },
+  {
+    "id": "anthropic-claude-3-sonnet",
+    "provider": "anthropic",
+    "display_name": "Claude 3 Sonnet",
+    "context_window": 200000,
+    "cost_in_per_1k": 0.003,
+    "cost_out_per_1k": 0.015,
+    "avg_latency_ms": 2200,
+    "open_source": false,
+    "tags": [
+      "closed",
+      "math"
+    ],
+    "capabilities": {
+      "coding": 0.73,
+      "math": 0.88,
+      "reasoning": 0.8493999999999999,
+      "writing": 0.7,
+      "support": 0.7
+    },
+    "notes": "Enhanced with benchmark data from trun_data_2024.json"
   },
   {
     "id": "anthropic-claude-3.5-sonnet",
@@ -37,13 +60,32 @@
       "coding"
     ],
     "capabilities": {
-      "coding": 0.88,
-      "reasoning": 0.93,
-      "writing": 0.9,
-      "support": 0.9,
+      "coding": 0.64,
+      "reasoning": 0.73,
+      "writing": 0.8,
+      "support": 0.8,
       "math": 0.88
     },
     "notes": "Excellent reasoning"
+  },
+  {
+    "id": "anthropic-claude-4-sonnet-thinking",
+    "provider": "anthropic",
+    "display_name": "Claude 4 Sonnet Thinking",
+    "context_window": 1000000,
+    "cost_in_per_1k": 0.003,
+    "cost_out_per_1k": 0.015,
+    "avg_latency_ms": null,
+    "open_source": false,
+    "tags": ["closed", "reasoning", "math", "coding"],
+    "capabilities": {
+      "coding": 0.7358,
+      "reasoning": 0.9525,
+      "writing": 0.7019,
+      "support": 0.8043,
+      "math": 0.8525
+    },
+    "notes": "Global Average Score: 72.08. Context and cost data for Claude Sonnet 4.. Other scores -> Agentic Coding: 30.00, Data Analysis: 69.84."
   },
   {
     "id": "google-gemini-1.5-pro",
@@ -59,13 +101,100 @@
       "multimodal"
     ],
     "capabilities": {
-      "coding": 0.8,
+      "coding": 0.6,
       "reasoning": 0.86,
       "writing": 0.88,
       "support": 0.88,
       "math": 0.86
     },
     "notes": "Strong multimodal"
+  },
+  {
+    "id": "openai-gpt-4",
+    "provider": "openai",
+    "display_name": "OpenAI GPT-4",
+    "context_window": 128000,
+    "cost_in_per_1k": 0.03,
+    "cost_out_per_1k": 0.06,
+    "avg_latency_ms": 2500,
+    "open_source": false,
+    "tags": [
+      "closed",
+      "math",
+      "general"
+    ],
+    "capabilities": {
+      "coding": 0.67,
+      "math": 0.92,
+      "reasoning": 0.8489999999999999,
+      "writing": 0.7,
+      "support": 0.7
+    },
+    "notes": "Enhanced with benchmark data from trun_data_2024.json"
+  },
+  {
+    "id": "openai-gpt-4o",
+    "provider": "openai",
+    "display_name": "OpenAI GPT-4o",
+    "context_window": 128000,
+    "cost_in_per_1k": 0.005,
+    "cost_out_per_1k": 0.015,
+    "avg_latency_ms": 2500,
+    "open_source": false,
+    "tags": [
+      "closed",
+      "general",
+      "vision"
+    ],
+    "capabilities": {
+      "coding": 0.72,
+      "reasoning": 0.82,
+      "writing": 0.9,
+      "support": 0.9,
+      "math": 0.9
+    },
+    "notes": "High performance general model"
+  },
+  {
+    "id": "openrouter-deepseek-coder-v2",
+    "provider": "openrouter",
+    "display_name": "DeepSeek Coder V2 (hosted)",
+    "context_window": 128000,
+    "cost_in_per_1k": 0.0006,
+    "cost_out_per_1k": 0.0015,
+    "avg_latency_ms": 2000,
+    "open_source": false,
+    "tags": [
+      "coding",
+      "cheap"
+    ],
+    "capabilities": {
+      "coding": 0.86,
+      "reasoning": 0.78,
+      "writing": 0.7,
+      "support": 0.72,
+      "math": 0.75
+    },
+    "notes": "Strong for code"
+  },
+  {
+    "id": "deepseek-deepseek-v3-1-thinking",
+    "provider": "openrouter",
+    "display_name": "DeepSeek V3.1 Thinking",
+    "context_window": 128000,
+    "cost_in_per_1k": null,
+    "cost_out_per_1k": null,
+    "avg_latency_ms": null,
+    "open_source": true,
+    "tags": ["open", "reasoning", "math", "coding"],
+    "capabilities": {
+      "coding": 0.7031,
+      "reasoning": 0.9067,
+      "writing": 0.704,
+      "support": 0.8585,
+      "math": 0.8872
+    },
+    "notes": "Global Average Score: 70.75. Context data for base DeepSeek V3 model.. Other scores -> Agentic Coding: 25.00, Data Analysis: 64.33."
   },
   {
     "id": "openrouter-meta-llama-3-70b-instruct",
@@ -90,25 +219,525 @@
     "notes": "Open-weight value"
   },
   {
-    "id": "openrouter-deepseek-coder-v2",
-    "provider": "openrouter",
-    "display_name": "DeepSeek Coder V2 (hosted)",
-    "context_window": 128000,
-    "cost_in_per_1k": 0.0006,
-    "cost_out_per_1k": 0.0015,
-    "avg_latency_ms": 2000,
+    "id": "openai-gpt-5",
+    "provider": "openai",
+    "display_name": "GPT-5",
+    "context_window": 400000,
+    "cost_in_per_1k": 0.00125,
+    "cost_out_per_1k": 0.01,
+    "avg_latency_ms": null,
     "open_source": false,
     "tags": [
+      "closed",
       "coding",
+      "reasoning",
+      "math",
+      "agentic"
+    ],
+    "capabilities": {
+      "coding": 0.749,
+      "reasoning": 0.894,
+      "writing": null,
+      "support": null,
+      "math": 1.0
+    },
+    "notes": "Benchmark Highlights: GPQA Diamond: 89.4%, AIME 2025: 100%, SWE Bench: 74.9%. Premier choice for complex coding and agentic tasks."
+  },
+  {
+    "id": "openai-gpt-5-high",
+    "provider": "openai",
+    "display_name": "GPT-5 High",
+    "context_window": 400000,
+    "cost_in_per_1k": 0.00125,
+    "cost_out_per_1k": 0.01,
+    "avg_latency_ms": null,
+    "open_source": false,
+    "tags": ["closed", "reasoning", "math", "coding"],
+    "capabilities": {
+      "coding": 0.7531,
+      "reasoning": 0.9817,
+      "writing": 0.8083,
+      "support": 0.8811,
+      "math": 0.9277
+    },
+    "notes": "Global Average Score: 78.59. Context and cost data for base GPT-5 model.. Other scores -> Agentic Coding: 43.33, Data Analysis: 71.63."
+  },
+  {
+    "id": "openai-gpt-5-medium",
+    "provider": "openai",
+    "display_name": "GPT-5 Medium",
+    "context_window": 400000,
+    "cost_in_per_1k": 0.00125,
+    "cost_out_per_1k": 0.01,
+    "avg_latency_ms": null,
+    "open_source": false,
+    "tags": ["closed", "reasoning", "math"],
+    "capabilities": {
+      "coding": 0.7325,
+      "reasoning": 0.9658,
+      "writing": 0.7899,
+      "support": 0.8899,
+      "math": 0.8995
+    },
+    "notes": "Global Average Score: 76.45. Context and cost data for base GPT-5 model.. Other scores -> Agentic Coding: 35.00, Data Analysis: 72.38."
+  },
+  {
+    "id": "openai-gpt-5-low",
+    "provider": "openai",
+    "display_name": "GPT-5 Low",
+    "context_window": 400000,
+    "cost_in_per_1k": 0.00125,
+    "cost_out_per_1k": 0.01,
+    "avg_latency_ms": null,
+    "open_source": false,
+    "tags": ["closed", "reasoning", "math"],
+    "capabilities": {
+      "coding": 0.7249,
+      "reasoning": 0.9047,
+      "writing": 0.7873,
+      "support": 0.8899,
+      "math": 0.8533
+    },
+    "notes": "Global Average Score: 75.34. Context and cost data for base GPT-5 model.. Other scores -> Agentic Coding: 41.67, Data Analysis: 69.72."
+  },
+  {
+    "id": "openai-gpt-5-mini",
+    "provider": "openai",
+    "display_name": "GPT-5 mini",
+    "context_window": 400000,
+    "cost_in_per_1k": 0.00025,
+    "cost_out_per_1k": 0.002,
+    "avg_latency_ms": null,
+    "open_source": false,
+    "tags": [
+      "closed",
+      "balanced",
+      "general"
+    ],
+    "capabilities": {
+      "coding": null,
+      "reasoning": 0.823,
+      "writing": null,
+      "support": null,
+      "math": 0.911
+    },
+    "notes": "Benchmark Highlights: GPQA diamond: 82.3%, AIME '25: 91.1%. A faster, cost-efficient version of GPT-5 for well-defined tasks."
+  },
+  {
+    "id": "openai-gpt-5-nano",
+    "provider": "openai",
+    "display_name": "GPT-5 nano",
+    "context_window": 400000,
+    "cost_in_per_1k": 0.00005,
+    "cost_out_per_1k": 0.0004,
+    "avg_latency_ms": null,
+    "open_source": false,
+    "tags": [
+      "closed",
+      "fast",
       "cheap"
     ],
     "capabilities": {
-      "coding": 0.86,
-      "reasoning": 0.78,
-      "writing": 0.7,
-      "support": 0.72,
-      "math": 0.75
+      "coding": null,
+      "reasoning": 0.712,
+      "writing": null,
+      "support": null,
+      "math": 0.852
     },
-    "notes": "Strong for code"
+    "notes": "Benchmark Highlights: GPQA diamond: 71.2%, AIME '25: 85.2%. Fastest and most cost-effective GPT-5 version for high-throughput tasks."
+  },
+  {
+    "id": "openai-gpt-4-1",
+    "provider": "openai",
+    "display_name": "GPT-4.1",
+    "context_window": 1000000,
+    "cost_in_per_1k": 0.002,
+    "cost_out_per_1k": 0.008,
+    "avg_latency_ms": null,
+    "open_source": false,
+    "tags": [
+      "closed",
+      "long-context",
+      "vision",
+      "enterprise"
+    ],
+    "capabilities": {
+      "coding": 0.686,
+      "reasoning": 0.902,
+      "writing": null,
+      "support": null,
+      "math": 0.481
+    },
+    "notes": "Benchmark Highlights: MMLU: 90.2%, GPQA Diamond: 66.3%, SWE-bench Verified: 54.6%, AIME '24: 48.1%. Excels in coding and understanding long contexts."
+  },
+  {
+    "id": "openai-gpt-4",
+    "provider": "openai",
+    "display_name": "OpenAI GPT-4",
+    "context_window": 128000,
+    "cost_in_per_1k": 0.03,
+    "cost_out_per_1k": 0.06,
+    "avg_latency_ms": null,
+    "open_source": false,
+    "tags": [
+      "closed",
+      "math",
+      "general"
+    ],
+    "capabilities": {
+      "coding": 0.67,
+      "math": 0.92,
+      "reasoning": 0.864,
+      "writing": null,
+      "support": null
+    },
+    "notes": "Benchmark data from Jan 2024. MMLU: 86.4, GSM8K: 92.0, HumanEval: 67.0."
+  },
+  {
+    "id": "anthropic-claude-4-1-opus-thinking",
+    "provider": "anthropic",
+    "display_name": "Claude 4.1 Opus Thinking",
+    "context_window": 200000,
+    "cost_in_per_1k": 0.015,
+    "cost_out_per_1k": 0.075,
+    "avg_latency_ms": null,
+    "open_source": false,
+    "tags": ["closed", "reasoning", "math", "coding"],
+    "capabilities": {
+      "coding": 0.7396,
+      "reasoning": 0.9319,
+      "writing": 0.7121,
+      "support": 0.8038,
+      "math": 0.9116
+    },
+    "notes": "Global Average Score: 73.48. Context and cost data for Claude Opus 4.1.. Other scores -> Agentic Coding: 33.33, Data Analysis: 71.14."
+  },
+  {
+    "id": "anthropic-claude-opus-4-1",
+    "provider": "anthropic",
+    "display_name": "Claude Opus 4.1",
+    "context_window": 200000,
+    "cost_in_per_1k": 0.015,
+    "cost_out_per_1k": 0.075,
+    "avg_latency_ms": null,
+    "open_source": false,
+    "tags": [
+      "closed",
+      "coding",
+      "agentic",
+      "research"
+    ],
+    "capabilities": {
+      "coding": 0.745,
+      "reasoning": 0.878,
+      "writing": null,
+      "support": null,
+      "math": null
+    },
+    "notes": "Benchmark Highlights: SWE-bench Verified: 74.5% (industry-leading), MMLU Pro (Nonthinking): 87.8%. Most intelligent model for demanding applications."
+  },
+  {
+    "id": "anthropic-claude-opus-3",
+    "provider": "anthropic",
+    "display_name": "Claude 3 Opus",
+    "context_window": 200000,
+    "cost_in_per_1k": 0.015,
+    "cost_out_per_1k": 0.075,
+    "avg_latency_ms": null,
+    "open_source": false,
+    "tags": [
+      "closed",
+      "reasoning",
+      "math",
+      "finance"
+    ],
+    "capabilities": {
+      "coding": 0.849,
+      "reasoning": 0.868,
+      "writing": null,
+      "support": null,
+      "math": 0.95
+    },
+    "notes": "Benchmark data from Mar 2024. MMLU: 86.8%, GSM8K: 95.0%, HumanEval: 84.9%. Ideal for complex analysis, high-level math, and strategy."
+  },
+  {
+    "id": "anthropic-claude-sonnet-4",
+    "provider": "anthropic",
+    "display_name": "Claude Sonnet 4",
+    "context_window": 200000,
+    "cost_in_per_1k": 0.003,
+    "cost_out_per_1k": 0.015,
+    "avg_latency_ms": null,
+    "open_source": false,
+    "tags": [
+      "closed",
+      "balanced",
+      "coding",
+      "enterprise"
+    ],
+    "capabilities": {
+      "coding": 0.727,
+      "reasoning": 0.7,
+      "writing": null,
+      "support": null,
+      "math": 0.705
+    },
+    "notes": "Benchmark Highlights: SWE-bench: 72.7%, GPQA Diamond: 70.0%, AIME: 70.5%. Optimal mix of capability, speed, and practicality."
+  },
+  {
+    "id": "google-gemini-2-5-pro",
+    "provider": "google",
+    "display_name": "Gemini 2.5 Pro",
+    "context_window": 1048576,
+    "cost_in_per_1k": 0.00125,
+    "cost_out_per_1k": 0.01,
+    "avg_latency_ms": null,
+    "open_source": false,
+    "tags": [
+      "closed",
+      "multimodal",
+      "long-context",
+      "reasoning"
+    ],
+    "capabilities": {
+      "coding": 0.638,
+      "reasoning": 0.864,
+      "writing": null,
+      "support": null,
+      "math": null
+    },
+    "notes": "Benchmark Highlights: GPQA Diamond: 86.4%, SWE-Bench Verified: 63.8%. Google's most advanced model for complex tasks."
+  },
+  {
+    "id": "google-gemini-2-5-pro-max-thinking",
+    "provider": "google",
+    "display_name": "Gemini 2.5 Pro (Max Thinking)",
+    "context_window": 1048576,
+    "cost_in_per_1k": 0.00125,
+    "cost_out_per_1k": 0.01,
+    "avg_latency_ms": null,
+    "open_source": false,
+    "tags": ["closed", "reasoning", "math", "coding"],
+    "capabilities": {
+      "coding": 0.739,
+      "reasoning": 0.9428,
+      "writing": 0.7544,
+      "support": 0.7735,
+      "math": 0.8419
+    },
+    "notes": "Global Average Score: 70.95. Context and cost data for Gemini 2.5 Pro.. Other scores -> Agentic Coding: 20.00, Data Analysis: 71.50."
+  },
+  {
+    "id": "meta-llama-4-scout",
+    "provider": "meta",
+    "display_name": "Llama 4 Scout",
+    "context_window": 10000000,
+    "cost_in_per_1k": 0.00011,
+    "cost_out_per_1k": 0.00034,
+    "avg_latency_ms": null,
+    "open_source": true,
+    "tags": [
+      "open",
+      "long-context",
+      "multimodal",
+      "fast"
+    ],
+    "capabilities": {
+      "coding": null,
+      "reasoning": null,
+      "writing": null,
+      "support": null,
+      "math": null
+    },
+    "notes": "Open-weight MoE model with a 10M token context window. Natively multimodal (text and image). Ideal for memory-intensive tasks."
+  },
+  {
+    "id": "meta-llama-3-1-405b",
+    "provider": "meta",
+    "display_name": "Llama 3.1 405B",
+    "context_window": 128000,
+    "cost_in_per_1k": 0.0035,
+    "cost_out_per_1k": 0.0035,
+    "avg_latency_ms": null,
+    "open_source": true,
+    "tags": [
+        "open",
+        "tool-use",
+        "agentic"
+    ],
+    "capabilities": {
+      "coding": null,
+      "reasoning": null,
+      "writing": null,
+      "support": null,
+      "math": null
+    },
+    "notes": "Benchmark Highlight: Top performer on BFCL (Tool Use benchmark) with 81.1%. Well-suited for building sophisticated agents."
+  },
+  {
+    "id": "mistral-large-2402",
+    "provider": "mistral-ai",
+    "display_name": "Mistral Large (Feb 2024)",
+    "context_window": 32000,
+    "cost_in_per_1k": null,
+    "cost_out_per_1k": null,
+    "avg_latency_ms": null,
+    "open_source": false,
+    "tags": [
+      "closed",
+      "reasoning",
+      "multilingual",
+      "coding"
+    ],
+    "capabilities": {
+      "coding": 0.451,
+      "reasoning": 0.812,
+      "writing": null,
+      "support": null,
+      "math": 0.812
+    },
+    "notes": "Benchmark data from Feb 2024. MMLU: 81.2%, GSM8K: 81.2%, HumanEval: 45.1%. Top-tier reasoning capabilities for enterprise use."
+  },
+  {
+    "id": "mistral-7b",
+    "provider": "mistral-ai",
+    "display_name": "Mistral 7B",
+    "context_window": 128000,
+    "cost_in_per_1k": 0.00025,
+    "cost_out_per_1k": 0.00025,
+    "avg_latency_ms": null,
+    "open_source": true,
+    "tags": [
+      "open",
+      "efficient",
+      "cheap"
+    ],
+    "capabilities": {
+      "coding": null,
+      "reasoning": null,
+      "writing": null,
+      "support": null,
+      "math": null
+    },
+    "notes": "Open-source model under Apache 2.0 license. Highly efficient, outperforming much larger models on benchmarks. Uses GQA and SWA for efficiency."
+  },
+  {
+    "id": "xai-grok-4",
+    "provider": "xai",
+    "display_name": "Grok 4",
+    "context_window": 256000,
+    "cost_in_per_1k": 0.003,
+    "cost_out_per_1k": 0.015,
+    "avg_latency_ms": null,
+    "open_source": false,
+    "tags": [
+      "closed",
+      "agentic",
+      "coding",
+      "reasoning",
+      "math"
+    ],
+    "capabilities": {
+      "coding": 0.75,
+      "reasoning": 0.875,
+      "writing": 0.7583,
+      "support": 0.7812,
+      "math": 0.888
+    },
+    "notes": "Benchmark Highlights: SWE Bench: 75%, GPQA Diamond: 87.5%. Supports text and vision with real-time search. Ideal for agentic coding."
+  },
+  {
+    "id": "amazon-nova-pro",
+    "provider": "amazon",
+    "display_name": "Amazon Nova Pro",
+    "context_window": 300000,
+    "cost_in_per_1k": 0.0025,
+    "cost_out_per_1k": 0.0125,
+    "avg_latency_ms": null,
+    "open_source": false,
+    "tags": [
+      "closed",
+      "multimodal",
+      "enterprise",
+      "finance"
+    ],
+    "capabilities": {
+      "coding": null,
+      "reasoning": 0.859,
+      "writing": null,
+      "support": null,
+      "math": 0.766
+    },
+    "notes": "Amazon's most advanced model. Benchmarks: MMLU (85.9%), MATH (76.6%). Ideal for software engineering, financial analysis, and RAG."
+  },
+  {
+    "id": "alibaba-qwen3-235b",
+    "provider": "alibaba",
+    "display_name": "Qwen3-235B-A22B",
+    "context_window": null,
+    "cost_in_per_1k": null,
+    "cost_out_per_1k": null,
+    "avg_latency_ms": null,
+    "open_source": true,
+    "tags": [
+        "open",
+        "coding",
+        "math",
+        "agentic"
+    ],
+    "capabilities": {
+      "coding": null,
+      "reasoning": null,
+      "writing": null,
+      "support": null,
+      "math": null
+    },
+    "notes": "Flagship model from Alibaba, available on Hugging Face under Apache 2.0. Achieves competitive results in coding, math, and agentic use."
+  },
+  {
+    "id": "cohere-command-r-plus-08-2024",
+    "provider": "cohere",
+    "display_name": "Command R+ (08-2024)",
+    "context_window": 128000,
+    "cost_in_per_1k": 0.0025,
+    "cost_out_per_1k": 0.01,
+    "avg_latency_ms": null,
+    "open_source": false,
+    "tags": [
+        "closed",
+        "enterprise",
+        "safety"
+    ],
+    "capabilities": {
+      "coding": null,
+      "reasoning": null,
+      "writing": null,
+      "support": null,
+      "math": null
+    },
+    "notes": "A text-only model designed for enterprise applications where safety and reliability are critical."
+  },
+  {
+    "id": "ibm-granite-code",
+    "provider": "ibm",
+    "display_name": "IBM Granite Code Models",
+    "context_window": null,
+    "cost_in_per_1k": null,
+    "cost_out_per_1k": null,
+    "avg_latency_ms": null,
+    "open_source": false,
+    "tags": [
+        "closed",
+        "specialized",
+        "coding"
+    ],
+    "capabilities": {
+      "coding": null,
+      "reasoning": null,
+      "writing": null,
+      "support": null,
+      "math": null
+    },
+    "notes": "A family of decoder-only models specifically designed for code generative tasks, trained on code from 116 programming languages."
   }
 ]

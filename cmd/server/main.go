@@ -1,18 +1,14 @@
 package main
 
 import (
-	"context"
 	"log"
-	"os"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 
 	"github.com/Askeban/llm-router-go/internal/config"
 	h "github.com/Askeban/llm-router-go/internal/http"
-	"github.com/Askeban/llm-router-go/internal/ingesters"
 	"github.com/Askeban/llm-router-go/internal/models"
 	"github.com/Askeban/llm-router-go/internal/storage"
 )
@@ -35,14 +31,8 @@ func main() {
 		log.Fatalf("seed models: %v", err)
 	}
 
-	// Optional: Pull Analytics AI at boot if the key is set
-	if apiKey := os.Getenv("ANALYTICS_AI_KEY"); apiKey != "" {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		if err := ingesters.SyncAnalyticsAI(ctx, apiKey, db); err != nil {
-			log.Printf("warn: analytics sync: %v", err)
-		}
-		cancel()
-	}
+	// Note: Analytics AI integration now handled by hybrid model service
+	// Real-time data is fetched on-demand via the customer API
 
 	r := gin.Default()
 	
