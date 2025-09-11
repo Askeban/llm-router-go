@@ -1,8 +1,8 @@
 version: '3.8'
 
 services:
-  # Redis for caching and performance optimizations
-  redis:
+  # Redis for testing
+  redis-test:
     image: redis:7-alpine
     container_name: llm-router-redis-test
     ports:
@@ -17,8 +17,100 @@ services:
     networks:
       - llm-router-test-network
 
-  # Enhanced Ingestor Test Service
-  enhanced-ingestor:
+  # Test API Service
+  api-test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: llm-router-api-test
+    ports:
+      - "8081:8080"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - CLASSIFIER_URL=http://classifier-test:5000
+      - SQLITE_PATH=/app/data/router_test.db
+      - MODEL_PROFILES_PATH=/app/configs/models.json
+      - ANALYTICS_AI_KEY=${ANALYTICS_AI_KEY:-aa_hvPVoBMuwefckQlniBWCrpQUmPdNSift}
+      - CLASSIFIER_RULES_PATH=/app/configs/classifier_rules.json
+      - REDIS_HOST=redis-test
+      - REDIS_PORT=6379
+      - GIN_MODE=debug
+    depends_on:
+      - classifier-test
+      - ingestor-test
+      - redis-test
+    volumes:
+      - api_test_data:/app/data
+      - ./configs:/app/configs:ro
+    networks:
+      - llm-router-test-network
+
+  # Test Classifier Service
+  classifier-test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.classifier
+    container_name: llm-router-classifier-test
+    ports:
+      - "5001:5000"
+    environment:
+      - CLASSIFIER_RULES_PATH=/app/configs/classifier_rules.json
+      - REDIS_HOST=redis-test
+      - REDIS_PORT=6379
+      - CACHE_TTL=300
+      - LOG_LEVEL=DEBUG
+    depends_on:
+      - redis-test
+    volumes:
+      - ./configs:/app/configs:ro
+      - classifier_test_cache:/app/cache
+    networks:
+      - llm-router-test-network
+
+  # Enhanced Ingestor Service (Test)
+  ingestor-test:
+    build:
+      context: ./python/ingestor_service
+      dockerfile: Dockerfile.enhanced
+    container_name: llm-router-ingestor-test
+    ports:
+      - "8003:8001"
+    environment:
+      - ROUTER_API=http://api-test:8080/ingest
+      - SOURCES=open-llm-leaderboard
+      - ANALYTICS_API_KEY=${ANALYTICS_API_KEY:-aa_hvPVoBMuwefckQlniBWCrpQUmPdNSift}
+      - HELM_GCS_BUCKET=crfm-helm-public
+      - HELM_GCS_PREFIX=lite/benchmark_output/runs
+      - HELM_GCS_SUITE=v1.0.0
+      - HELM_GCS_LIMIT=10
+      - MODELS_JSON_PATH=/app/data/models.json
+      - SCRAPED_DATA_DIR=/app/configs
+      - OUTPUT_PATH=/app/data/enhanced_models.json
+      - PORT=8001
+      - REDIS_HOST=redis-test
+      - REDIS_PORT=6379
+    depends_on:
+      - redis-test
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    volumes:
+      - ingestor_test_data:/app/data
+      - ingestor_test_cache:/app/cache
+      - ingestor_test_backups:/app/backups
+      - ./configs:/app/configs:ro
+      - ./internal/models.json:/app/data/models.json:ro
+    networks:
+      - llm-router-test-network
+
+  # Enhanced Ingestor Test Service (for testing new features)
+  enhanced-ingestor-test:
     build:
       context: ./python/ingestor_service
       dockerfile: Dockerfile.enhanced
@@ -26,15 +118,15 @@ services:
     ports:
       - "8002:8001"
     environment:
-      - REDIS_HOST=redis
+      - REDIS_HOST=redis-test
       - REDIS_PORT=6379
-      - ANALYTICS_API_KEY=${ANALYTICS_API_KEY:-your-analytics-ai-api-key}
+      - ANALYTICS_API_KEY=${ANALYTICS_API_KEY:-aa_hvPVoBMuwefckQlniBWCrpQUmPdNSift}
       - MODELS_JSON_PATH=/app/data/models.json
       - SCRAPED_DATA_DIR=/app/configs
       - OUTPUT_PATH=/app/data/enhanced_models.json
       - PORT=8001
     depends_on:
-      - redis
+      - redis-test
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
       interval: 30s
@@ -49,10 +141,14 @@ services:
       - ./python/ingestor_service/config.yaml:/app/config.yaml:ro
     networks:
       - llm-router-test-network
-    restart: unless-stopped
 
 volumes:
   redis_test_data:
+  api_test_data:
+  ingestor_test_data:
+  ingestor_test_cache:
+  ingestor_test_backups:
+  classifier_test_cache:
   enhanced_ingestor_test_data:
   enhanced_ingestor_test_cache:
 

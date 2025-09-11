@@ -16,6 +16,7 @@ import (
 	"github.com/Askeban/llm-router-go/internal/config"
 	"github.com/Askeban/llm-router-go/internal/metrics"
 	"github.com/Askeban/llm-router-go/internal/models"
+	"github.com/Askeban/llm-router-go/internal/orchestrator"
 	"github.com/Askeban/llm-router-go/internal/providers"
 	"github.com/Askeban/llm-router-go/internal/recommendation"
 )
@@ -33,60 +34,118 @@ type IngestPayload struct {
 
 func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 	store := metrics.NewStore(db)
-	
+
 	// Initialize hybrid model service for real-time Analytics AI data
 	hybridModelService := models.NewHybridModelService(db, cfg.ModelProfilesPath)
-	
+
+	// Initialize orchestrator for Parallel AI integration
+	updateOrchestrator := orchestrator.NewOrchestrator(db, cfg.ModelProfilesPath)
+
 	clf := classifier.New(cfg.ClassifierURL)
 	reg := providers.NewRegistry(cfg)
-	
+
 	// Initialize auth services
 	authService := auth.NewService(db)
 	jwtManager := auth.NewJWTManager()
 	authHandlers := auth.NewHandlers(authService, jwtManager)
-	
+
 	// Initialize rate limiter (Redis connection)
 	redisAddr := os.Getenv("REDIS_ADDR")
 	if redisAddr == "" {
 		redisAddr = "localhost:6379"
 	}
 	rateLimiter := auth.NewRateLimiter(redisAddr, "", 0)
-	
+
 	// Register authentication routes with hybrid model service
 	registerAuthRoutes(r, authHandlers, rateLimiter, authService, hybridModelService, clf, store)
-	
+
 	// Register metrics lookup endpoint
 	registerMetricsLookup(r, store)
 
 	r.GET("/healthz", func(c *gin.Context) { c.JSON(200, gin.H{"ok": true}) })
-	
+
 	// Hybrid model service endpoints
 	r.GET("/models/metrics", func(c *gin.Context) {
 		metrics := hybridModelService.GetMetrics()
 		c.JSON(200, gin.H{
-			"status": "ok",
+			"status":  "ok",
 			"metrics": metrics,
 		})
 	})
-	
+
 	r.POST("/models/refresh", func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
 		defer cancel()
-		
-		if err := hybridModelService.RefreshCache(ctx); err != nil {
+
+		if err := hybridModelService.ForceRefresh(ctx); err != nil {
 			c.JSON(500, gin.H{
 				"error": gin.H{
-					"code": "cache_refresh_failed",
+					"code":    "force_refresh_failed",
 					"message": err.Error(),
 				},
 			})
 			return
 		}
-		
+
 		c.JSON(200, gin.H{
-			"status": "ok", 
-			"message": "Model cache refreshed successfully",
+			"status":  "ok",
+			"message": "Model cache force refreshed successfully (on-demand)",
 			"metrics": hybridModelService.GetMetrics(),
+		})
+	})
+
+	// Parallel AI orchestrator endpoints
+	r.GET("/orchestrator/discrepancies", func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 60*time.Second)
+		defer cancel()
+
+		report, err := updateOrchestrator.DetectDiscrepancies(ctx)
+		if err != nil {
+			c.JSON(500, gin.H{
+				"error": gin.H{
+					"code":    "discrepancy_detection_failed",
+					"message": err.Error(),
+				},
+			})
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"status": "ok",
+			"report": report,
+		})
+	})
+
+	r.POST("/orchestrator/update", func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Minute)
+		defer cancel()
+
+		summary, err := updateOrchestrator.ExecuteMonthlyUpdate(ctx)
+		if err != nil {
+			c.JSON(500, gin.H{
+				"error": gin.H{
+					"code":    "monthly_update_failed",
+					"message": err.Error(),
+				},
+			})
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"status":  "ok",
+			"message": "Monthly model update completed",
+			"summary": summary,
+		})
+	})
+
+	r.GET("/orchestrator/history", func(c *gin.Context) {
+		history := updateOrchestrator.GetUpdateHistory()
+
+		c.JSON(200, gin.H{
+			"status":        "ok",
+			"history":       history,
+			"last_update":   updateOrchestrator.GetLastUpdate().Format(time.RFC3339),
+			"should_update": updateOrchestrator.ShouldUpdate(),
 		})
 	})
 
@@ -103,7 +162,6 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 		}
 		c.JSON(200, gin.H{"ok": true, "count": len(p.Metrics)})
 	})
-
 
 	r.GET("/metrics/models", func(c *gin.Context) {
 		rows, err := store.ListModels(c.Request.Context())
@@ -225,7 +283,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 		}
 
 		best, ranking := recommendation.Rank(category, difficulty, mods, boost)
-		
+
 		if len(ranking) == 0 {
 			c.JSON(500, gin.H{"error": "no models available for recommendation"})
 			return
@@ -323,18 +381,18 @@ func handleListModels(hybridService *models.HybridModelService) gin.HandlerFunc 
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second) // Longer timeout for Analytics AI
 		defer cancel()
-		
+
 		models, err := hybridService.GetModels(ctx)
 		if err != nil {
 			c.JSON(500, gin.H{
 				"error": gin.H{
-					"code":    "models_fetch_failed", 
+					"code":    "models_fetch_failed",
 					"message": "Failed to fetch models",
 				},
 			})
 			return
 		}
-		
+
 		c.JSON(200, gin.H{
 			"models": models,
 			"total":  len(models),
@@ -346,12 +404,12 @@ func handleListModels(hybridService *models.HybridModelService) gin.HandlerFunc 
 func handleRecommend(hybridService *models.HybridModelService, clf *classifier.Client, store *metrics.Store) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req struct {
-			Prompt     string         `json:"prompt" binding:"required"`
-			MaxCost    float64        `json:"max_cost,omitempty"`    // Max cost per 1K tokens
-			MaxLatency int            `json:"max_latency,omitempty"` // Max latency in ms
+			Prompt      string             `json:"prompt" binding:"required"`
+			MaxCost     float64            `json:"max_cost,omitempty"`    // Max cost per 1K tokens
+			MaxLatency  int                `json:"max_latency,omitempty"` // Max latency in ms
 			Preferences map[string]float64 `json:"preferences,omitempty"` // performance, cost, latency weights
 		}
-		
+
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(400, gin.H{
 				"error": gin.H{
@@ -361,9 +419,9 @@ func handleRecommend(hybridService *models.HybridModelService, clf *classifier.C
 			})
 			return
 		}
-		
+
 		start := time.Now()
-		
+
 		// Step 1: Classify the prompt
 		category, difficulty, err := clf.Classify(c.Request.Context(), req.Prompt)
 		if err != nil {
@@ -376,22 +434,22 @@ func handleRecommend(hybridService *models.HybridModelService, clf *classifier.C
 			return
 		}
 		classifyMs := time.Since(start).Milliseconds()
-		
+
 		// Step 2: Get all models
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 		defer cancel()
-		
+
 		allModels, err := hybridService.GetModels(ctx)
 		if err != nil {
 			c.JSON(500, gin.H{
 				"error": gin.H{
 					"code":    "models_fetch_failed",
-					"message": "Failed to fetch models", 
+					"message": "Failed to fetch models",
 				},
 			})
 			return
 		}
-		
+
 		// Step 3: Apply filters if specified
 		filteredModels := allModels
 		if req.MaxCost > 0 || req.MaxLatency > 0 {
@@ -407,7 +465,7 @@ func handleRecommend(hybridService *models.HybridModelService, clf *classifier.C
 			}
 			filteredModels = filtered
 		}
-		
+
 		if len(filteredModels) == 0 {
 			c.JSON(200, gin.H{
 				"error": gin.H{
@@ -421,14 +479,14 @@ func handleRecommend(hybridService *models.HybridModelService, clf *classifier.C
 			})
 			return
 		}
-		
+
 		// Step 4: Get performance boosts from metrics
 		rows, _ := store.GetAll(c.Request.Context())
 		perfBoost := map[string]float64{}
 		if len(rows) > 0 {
 			perModel := map[string]map[string]float64{}
 			minBy, maxBy := map[string]float64{}, map[string]float64{}
-			
+
 			// Collect metric ranges
 			for _, r2 := range rows {
 				k := strings.ToLower(r2.Metric)
@@ -443,7 +501,7 @@ func handleRecommend(hybridService *models.HybridModelService, clf *classifier.C
 					maxBy[k] = r2.Value
 				}
 			}
-			
+
 			// Normalize metrics
 			norm := func(metric string, v float64) float64 {
 				min, ok1 := minBy[metric]
@@ -460,7 +518,7 @@ func handleRecommend(hybridService *models.HybridModelService, clf *classifier.C
 				}
 				return nv
 			}
-			
+
 			// Map metrics to categories
 			metricMap := map[string]struct {
 				category string
@@ -473,7 +531,7 @@ func handleRecommend(hybridService *models.HybridModelService, clf *classifier.C
 				"artificial_analysis_coding_index":       {"coding", 1.0},
 				"artificial_analysis_math_index":         {"math", 1.0},
 			}
-			
+
 			// Build per-model performance scores
 			for _, r2 := range rows {
 				m := strings.ToLower(r2.Metric)
@@ -484,7 +542,7 @@ func handleRecommend(hybridService *models.HybridModelService, clf *classifier.C
 					perModel[r2.ModelID][m] = norm(m, r2.Value) * mm.weight
 				}
 			}
-			
+
 			// Calculate boost scores
 			for id, mm := range perModel {
 				sum, n := 0.0, 0.0
@@ -497,10 +555,10 @@ func handleRecommend(hybridService *models.HybridModelService, clf *classifier.C
 				}
 			}
 		}
-		
+
 		// Step 5: Rank models using the existing recommendation engine
 		bestModel, rankedModels := recommendation.Rank(category, difficulty, filteredModels, perfBoost)
-		
+
 		if bestModel.ID == "" {
 			c.JSON(500, gin.H{
 				"error": gin.H{
@@ -510,14 +568,14 @@ func handleRecommend(hybridService *models.HybridModelService, clf *classifier.C
 			})
 			return
 		}
-		
+
 		totalMs := time.Since(start).Milliseconds()
-		
+
 		// Step 6: Return recommendation
 		c.JSON(200, gin.H{
 			"recommendation": gin.H{
-				"model": bestModel,
-				"score": rankedModels[0].Score,
+				"model":     bestModel,
+				"score":     rankedModels[0].Score,
 				"reasoning": rankedModels[0].Why,
 			},
 			"classification": gin.H{
@@ -531,16 +589,16 @@ func handleRecommend(hybridService *models.HybridModelService, clf *classifier.C
 						break
 					}
 					alt = append(alt, gin.H{
-						"model": r.ModelProfile,
-						"score": r.Score,
+						"model":     r.ModelProfile,
+						"score":     r.Score,
 						"reasoning": r.Why,
 					})
 				}
 				return alt
 			}(),
 			"timing": gin.H{
-				"total_ms":       totalMs,
-				"classify_ms":    classifyMs,
+				"total_ms":          totalMs,
+				"classify_ms":       classifyMs,
 				"recommendation_ms": totalMs - classifyMs,
 			},
 			"request_id": fmt.Sprintf("req_%d", time.Now().Unix()),

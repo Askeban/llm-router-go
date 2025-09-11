@@ -1,0 +1,28 @@
+# Google Cloud App Engine configuration
+runtime: nodejs18
+service: llm-router-website
+
+env_variables:
+  NODE_ENV: production
+  API_BASE_URL: https://api.llmrouter.ai
+  
+automatic_scaling:
+  min_instances: 1
+  max_instances: 10
+  target_cpu_utilization: 0.6
+  target_throughput_utilization: 0.6
+
+handlers:
+  - url: /_next/static
+    static_dir: .next/static
+    expiration: 365d
+    
+  - url: /favicon.ico
+    static_files: public/favicon.ico
+    upload: public/favicon.ico
+    expiration: 30d
+    
+  - url: /.*
+    script: auto
+    secure: always
+    redirect_http_response_code: 301

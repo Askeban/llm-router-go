@@ -4,4 +4,4 @@ COPY python/ingestor_service/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 COPY python/ingestor_service /app
 EXPOSE 5100
-CMD ["uvicorn","ingestor:app","--host","0.0.0.0","--port","5100"]
+CMD ["uvicorn","simple_service:app","--host","0.0.0.0","--port","5100"]

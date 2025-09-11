@@ -20,68 +20,68 @@ type CapabilityScore struct {
 
 // Performance profile for different complexity levels
 type ComplexityProfile struct {
-	Score                 float64 `json:"score"`                   // Main score (0-1)
-	Confidence           float64 `json:"confidence"`              // Confidence (0-1)
+	Score                 float64 `json:"score"`                  // Main score (0-1)
+	Confidence            float64 `json:"confidence"`             // Confidence (0-1)
 	PerformanceMultiplier float64 `json:"performance_multiplier"` // Adjustment factor
 	SpeedBoost            float64 `json:"speed_boost"`            // Relative speed
 	QualityScore          float64 `json:"quality_score"`          // Output quality
 }
 
-// Routing metadata for intelligent model selection  
+// Routing metadata for intelligent model selection
 type RoutingMetadata struct {
-	UsageCount           int      `json:"usage_count"`
-	SuccessRate          float64  `json:"success_rate"`
-	AverageRating        float64  `json:"average_rating"`
-	BestCreativityScore  float64  `json:"best_creativity_score"`
-	HandlesUrgency       bool     `json:"handles_urgency"`
-	InteractionStyles    []string `json:"interaction_styles"`
-	MaxOutputTokens      int      `json:"max_output_tokens"`
-	Specializations      []string `json:"specializations"`
-	PreferredUseCase     string   `json:"preferred_use_case"`
-	AvoidedScenarios     []string `json:"avoided_scenarios"`
+	UsageCount          int      `json:"usage_count"`
+	SuccessRate         float64  `json:"success_rate"`
+	AverageRating       float64  `json:"average_rating"`
+	BestCreativityScore float64  `json:"best_creativity_score"`
+	HandlesUrgency      bool     `json:"handles_urgency"`
+	InteractionStyles   []string `json:"interaction_styles"`
+	MaxOutputTokens     int      `json:"max_output_tokens"`
+	Specializations     []string `json:"specializations"`
+	PreferredUseCase    string   `json:"preferred_use_case"`
+	AvoidedScenarios    []string `json:"avoided_scenarios"`
 }
 
 // Data source tracking for quality assurance
 type DataProvenance struct {
-	StaticData   map[string]string `json:"static_data"`   // Field -> timestamp
-	ScrapedData  map[string]string `json:"scraped_data"`  // Field -> timestamp  
-	APIData      map[string]string `json:"api_data"`      // Field -> timestamp
-	LastConsolidated string        `json:"last_consolidated"`
-	DataQuality      float64       `json:"data_quality"` // 0.0 to 1.0
+	StaticData       map[string]string `json:"static_data"`  // Field -> timestamp
+	ScrapedData      map[string]string `json:"scraped_data"` // Field -> timestamp
+	APIData          map[string]string `json:"api_data"`     // Field -> timestamp
+	LastConsolidated string            `json:"last_consolidated"`
+	DataQuality      float64           `json:"data_quality"` // 0.0 to 1.0
 }
 
 // Enhanced ModelProfile with classifier integration
 type ModelProfile struct {
 	// Core identification
-	ID            string `json:"id"`
-	Provider      string `json:"provider"`
-	DisplayName   string `json:"display_name"`
-	APIAlias      string `json:"api_alias,omitempty"`      // API endpoint name
-	ReleaseDate   string `json:"release_date,omitempty"`   // Release date
-	
+	ID          string `json:"id"`
+	Provider    string `json:"provider"`
+	DisplayName string `json:"display_name"`
+	APIAlias    string `json:"api_alias,omitempty"`    // API endpoint name
+	ReleaseDate string `json:"release_date,omitempty"` // Release date
+
 	// Technical specifications
-	ContextWindow       int     `json:"context_window"`
-	MaxOutputTokens     int     `json:"max_output_tokens,omitempty"`
-	CostInPer1K         float64 `json:"cost_in_per_1k"`
-	CostOutPer1K        float64 `json:"cost_out_per_1k"`
-	CachedCostInPer1K   float64 `json:"cached_cost_in_per_1k,omitempty"`
-	AvgLatencyMs        int     `json:"avg_latency_ms"`
-	OpenSource          bool    `json:"open_source"`
-	
+	ContextWindow     int     `json:"context_window"`
+	MaxOutputTokens   int     `json:"max_output_tokens,omitempty"`
+	CostInPer1K       float64 `json:"cost_in_per_1k"`
+	CostOutPer1K      float64 `json:"cost_out_per_1k"`
+	CachedCostInPer1K float64 `json:"cached_cost_in_per_1k,omitempty"`
+	AvgLatencyMs      int     `json:"avg_latency_ms"`
+	OpenSource        bool    `json:"open_source"`
+
 	// Enhanced capabilities (classifier-aligned)
-	EnhancedCapabilities map[string]CapabilityScore `json:"enhanced_capabilities,omitempty"`
+	EnhancedCapabilities map[string]CapabilityScore   `json:"enhanced_capabilities,omitempty"`
 	ComplexityProfiles   map[string]ComplexityProfile `json:"complexity_profiles,omitempty"`
-	BenchmarkScores      map[string]float64 `json:"benchmark_scores,omitempty"`
-	
+	BenchmarkScores      map[string]float64           `json:"benchmark_scores,omitempty"`
+
 	// Routing intelligence
 	RoutingMetadata *RoutingMetadata `json:"routing_metadata,omitempty"`
-	
+
 	// Legacy compatibility
 	Capabilities map[string]float64 `json:"capabilities"` // Keep for backward compatibility
 	BestAt       []string           `json:"best_at"`      // Legacy field for compatibility
 	Tags         []string           `json:"tags"`
 	Notes        string             `json:"notes"`
-	
+
 	// Data quality and provenance
 	DataProvenance DataProvenance `json:"data_provenance"`
 }
@@ -141,12 +141,12 @@ CREATE TABLE IF NOT EXISTS models(
 		jcomplex, _ := json.Marshal(m.ComplexityProfiles)
 		jrouting, _ := json.Marshal(m.RoutingMetadata)
 		jprov, _ := json.Marshal(m.DataProvenance)
-		
+
 		_, err = tx.Exec(`INSERT OR REPLACE INTO models
 (id,provider,display_name,api_alias,release_date,context_window,max_output_tokens,cost_in_per_1k,cost_out_per_1k,cached_cost_in_per_1k,avg_latency_ms,open_source,enhanced_capabilities,complexity_profiles,routing_metadata,tags,capabilities,notes,data_provenance)
 VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-			m.ID, m.Provider, m.DisplayName, m.APIAlias, m.ReleaseDate, m.ContextWindow, m.MaxOutputTokens, 
-			m.CostInPer1K, m.CostOutPer1K, m.CachedCostInPer1K, m.AvgLatencyMs, boolToInt(m.OpenSource), 
+			m.ID, m.Provider, m.DisplayName, m.APIAlias, m.ReleaseDate, m.ContextWindow, m.MaxOutputTokens,
+			m.CostInPer1K, m.CostOutPer1K, m.CachedCostInPer1K, m.AvgLatencyMs, boolToInt(m.OpenSource),
 			string(jenhcaps), string(jcomplex), string(jrouting), string(jtags), string(jcaps), m.Notes, string(jprov))
 		if err != nil {
 			return err
@@ -170,13 +170,13 @@ func (p *Profiles) ListModels(ctx context.Context) ([]ModelProfile, error) {
 		var open int
 		var apiAlias, releaseDate sql.NullString
 		var maxOutput, cachedCost sql.NullFloat64
-		
-		if err := rows.Scan(&m.ID, &m.Provider, &m.DisplayName, &apiAlias, &releaseDate, 
-			&m.ContextWindow, &maxOutput, &m.CostInPer1K, &m.CostOutPer1K, &cachedCost, 
+
+		if err := rows.Scan(&m.ID, &m.Provider, &m.DisplayName, &apiAlias, &releaseDate,
+			&m.ContextWindow, &maxOutput, &m.CostInPer1K, &m.CostOutPer1K, &cachedCost,
 			&m.AvgLatencyMs, &open, &jenhcaps, &jcomplex, &jrouting, &jtags, &jcaps, &m.Notes, &jprov); err != nil {
 			return nil, err
 		}
-		
+
 		// Handle nullable fields
 		if apiAlias.Valid {
 			m.APIAlias = apiAlias.String
@@ -190,7 +190,7 @@ func (p *Profiles) ListModels(ctx context.Context) ([]ModelProfile, error) {
 		if cachedCost.Valid {
 			m.CachedCostInPer1K = cachedCost.Float64
 		}
-		
+
 		// Unmarshal JSON fields
 		_ = json.Unmarshal([]byte(jtags), &m.Tags)
 		_ = json.Unmarshal([]byte(jcaps), &m.Capabilities)
@@ -198,7 +198,7 @@ func (p *Profiles) ListModels(ctx context.Context) ([]ModelProfile, error) {
 		_ = json.Unmarshal([]byte(jcomplex), &m.ComplexityProfiles)
 		_ = json.Unmarshal([]byte(jrouting), &m.RoutingMetadata)
 		_ = json.Unmarshal([]byte(jprov), &m.DataProvenance)
-		
+
 		m.OpenSource = open == 1
 		out = append(out, m)
 	}
@@ -240,5 +240,9 @@ func (p *Profiles) UpdateCapabilities(ctx context.Context, id string, caps map[s
 	return err
 }
 
-func boolToInt(b bool) int { if b { return 1 }; return 0 }
-
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
