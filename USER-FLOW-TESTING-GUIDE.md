@@ -15,7 +15,7 @@ This guide provides step-by-step instructions to test the complete user journey 
 ```bash
 # In terminal 1
 cd /Users/Sauransh.Singh/Downloads/llm-router-go
-export ANALYTICS_API_KEY="aa_hvPVoBMuwefckQlniBWCrpQUmPdNSift"
+export ANALYTICS_API_KEY="your_analytics_api_key_here"
 go run . # or your preferred server binary
 ```
 
@@ -23,7 +23,7 @@ go run . # or your preferred server binary
 ```bash
 # In terminal 2
 cd /Users/Sauransh.Singh/Downloads/llm-router-go
-export ANALYTICS_API_KEY="aa_hvPVoBMuwefckQlniBWCrpQUmPdNSift"
+export ANALYTICS_API_KEY="your_analytics_api_key_here"
 go run cmd/enhanced-server/main.go
 ```
 

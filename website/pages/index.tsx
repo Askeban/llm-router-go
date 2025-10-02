@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react'
 import Head from 'next/head'
-import { 
-  Bot, 
-  DollarSign, 
-  Target, 
-  Building2, 
-  Zap, 
+import Link from 'next/link'
+import {
+  Bot,
+  DollarSign,
+  Target,
+  Building2,
+  Zap,
   BarChart3,
   CheckCircle,
   ArrowRight,
   Play,
   Code,
   Lightbulb,
-  Users
+  Users,
+  LogIn
 } from 'lucide-react'
+import { useAuth } from '../src/context/AuthContext'
 import StatsCounter from '../src/components/StatsCounter'
 import InteractiveDemo from '../src/components/InteractiveDemo'
 import FeatureCard from '../src/components/FeatureCard'
@@ -21,6 +24,7 @@ import CostCalculator from '../src/components/CostCalculator'
 
 export default function Home() {
   const [mounted, setMounted] = useState(false)
+  const { user, isLoading } = useAuth()
 
   useEffect(() => {
     setMounted(true)
@@ -77,9 +81,27 @@ export default function Home() {
                 <a href="#demo" className="text-gray-700 hover:text-primary-600 transition-colors">Demo</a>
                 <a href="#pricing" className="text-gray-700 hover:text-primary-600 transition-colors">Pricing</a>
                 <a href="#docs" className="text-gray-700 hover:text-primary-600 transition-colors">Docs</a>
-                <button className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors">
-                  Get Started
-                </button>
+                {!isLoading && (
+                  user ? (
+                    <Link href="/dashboard">
+                      <button className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors">
+                        Dashboard
+                      </button>
+                    </Link>
+                  ) : (
+                    <div className="flex items-center space-x-4">
+                      <Link href="/login" className="text-gray-700 hover:text-primary-600 transition-colors flex items-center space-x-1">
+                        <LogIn className="h-4 w-4" />
+                        <span>Sign In</span>
+                      </Link>
+                      <Link href="/register">
+                        <button className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors">
+                          Get Started
+                        </button>
+                      </Link>
+                    </div>
+                  )
+                )}
               </div>
             </div>
           </div>
@@ -90,39 +112,54 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
               <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6 animate-slide-up">
-                Save <span className="gradient-text">80%+</span> on AI Costs
+                Save <span className="gradient-text">Up to 99%</span> on AI Costs
                 <br />
                 Without Sacrificing Quality
               </h1>
               <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto animate-slide-up">
-                Intelligent LLM routing across <strong>200+ models</strong> with enterprise-grade optimization. 
-                Get the right model for every task with sub-second classification.
+                Intelligent LLM routing across <strong>26 verified models</strong> with real-time cost optimization.
+                Get the right model for every task with data-driven recommendations.
               </p>
               
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12 animate-slide-up">
-                <button className="bg-primary-600 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:bg-primary-700 transition-all transform hover:scale-105 flex items-center space-x-2">
-                  <Play className="h-5 w-5" />
-                  <span>Try Interactive Demo</span>
-                </button>
-                <button className="border border-gray-300 text-gray-700 px-8 py-4 rounded-xl text-lg font-semibold hover:bg-gray-50 transition-all flex items-center space-x-2">
-                  <Code className="h-5 w-5" />
-                  <span>View API Docs</span>
-                </button>
+                {!isLoading && (
+                  user ? (
+                    <Link href="/dashboard">
+                      <button className="bg-primary-600 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:bg-primary-700 transition-all transform hover:scale-105 flex items-center space-x-2">
+                        <BarChart3 className="h-5 w-5" />
+                        <span>Go to Dashboard</span>
+                      </button>
+                    </Link>
+                  ) : (
+                    <Link href="/register">
+                      <button className="bg-primary-600 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:bg-primary-700 transition-all transform hover:scale-105 flex items-center space-x-2">
+                        <Play className="h-5 w-5" />
+                        <span>Try Interactive Demo</span>
+                      </button>
+                    </Link>
+                  )
+                )}
+                <a href="#demo">
+                  <button className="border border-gray-300 text-gray-700 px-8 py-4 rounded-xl text-lg font-semibold hover:bg-gray-50 transition-all flex items-center space-x-2">
+                    <Code className="h-5 w-5" />
+                    <span>View API Docs</span>
+                  </button>
+                </a>
               </div>
 
               {/* Live Stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
-                <StatsCounter 
+                <StatsCounter
                   icon={<Bot className="h-8 w-8 text-primary-600" />}
-                  value={198}
+                  value={26}
                   label="AI Models"
-                  suffix="+"
+                  suffix=""
                 />
-                <StatsCounter 
+                <StatsCounter
                   icon={<DollarSign className="h-8 w-8 text-success-600" />}
-                  value={80}
-                  label="Cost Savings"
+                  value={87}
+                  label="Avg Cost Savings"
                   suffix="%"
                 />
                 <StatsCounter 
@@ -253,7 +290,7 @@ export default function Home() {
             <div className="grid md:grid-cols-3 gap-8">
               {[
                 {
-                  quote: "LLM Router reduced our AI costs by 85% while actually improving response quality. It's a game-changer for our agentic workflows.",
+                  quote: "LLM Router reduced our AI costs by 87% while actually improving response quality. Real savings backed by data analytics.",
                   author: "Sarah Chen",
                   title: "CTO, TechFlow Systems",
                   savings: "$50k/month saved"

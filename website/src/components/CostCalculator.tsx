@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Calculator, TrendingDown, DollarSign, Zap } from 'lucide-react'
+import { Calculator, TrendingDown, DollarSign, Zap, Loader } from 'lucide-react'
+import { apiService } from '../services/api'
 
 interface CalculatorResult {
   currentCost: number
@@ -29,41 +30,102 @@ export default function CostCalculator() {
   const [useCase, setUseCase] = useState("coding")
   const [currentProvider, setCurrentProvider] = useState("openai")
   const [result, setResult] = useState<CalculatorResult | null>(null)
+  const [models, setModels] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(false)
 
-  const calculateSavings = () => {
-    const useCaseData = USE_CASE_MULTIPLIERS[useCase as keyof typeof USE_CASE_MULTIPLIERS]
-    const baseTokens = 1000 // Average tokens per request
-    const totalTokens = monthlyRequests * baseTokens
-    
-    // Current provider costs (simplified)
-    const providerRates = {
-      "openai": 0.030,
-      "anthropic": 0.080, 
-      "google": 0.025,
-      "other": 0.035
+  const calculateSavings = async () => {
+    setIsLoading(true)
+    try {
+      // Load models if not already loaded
+      if (models.length === 0) {
+        const modelsData = await apiService.getModels()
+        setModels(modelsData)
+      }
+
+      const useCaseData = USE_CASE_MULTIPLIERS[useCase as keyof typeof USE_CASE_MULTIPLIERS]
+      const baseTokens = 1000 // Average tokens per request
+      const totalTokens = monthlyRequests * baseTokens
+
+      // Get current provider models and calculate average cost
+      const currentModels = models.length > 0 ? models : await apiService.getModels()
+      const providerModels = currentModels.filter(model =>
+        model.provider.toLowerCase().includes(currentProvider) ||
+        (currentProvider === 'openai' && model.provider.toLowerCase().includes('openai')) ||
+        (currentProvider === 'anthropic' && model.provider.toLowerCase().includes('anthropic')) ||
+        (currentProvider === 'google' && model.provider.toLowerCase().includes('google'))
+      )
+
+      // Calculate current cost using real model prices
+      let currentRate = 0.035 // fallback
+      if (providerModels.length > 0) {
+        // Use average of premium models for current cost
+        const premiumModels = providerModels.filter(model => model.quality_score > 0.85)
+        if (premiumModels.length > 0) {
+          currentRate = premiumModels.reduce((sum, model) => sum + model.cost_per_1k, 0) / premiumModels.length
+        } else {
+          currentRate = providerModels.reduce((sum, model) => sum + model.cost_per_1k, 0) / providerModels.length
+        }
+      }
+
+      const currentCost = (totalTokens / 1000) * currentRate * useCaseData.cost
+
+      // Calculate optimized cost using cheapest suitable models
+      const suitableModels = currentModels.filter(model => {
+        if (useCase === "coding") return model.task_type === "code-analysis" || model.modalities.includes("text")
+        if (useCase === "analysis") return model.task_type === "analysis" || model.reasoning_score > 0.8
+        if (useCase === "multimodal") return model.modalities.length > 1
+        return model.task_type === "text-generation" || model.modalities.includes("text")
+      })
+
+      let optimizedRate = currentRate * 0.2 // fallback to 80% savings
+      if (suitableModels.length > 0) {
+        // Use average of cost-optimized models (bottom 25% by cost, top 50% by quality)
+        const sortedByCost = suitableModels.sort((a, b) => a.cost_per_1k - b.cost_per_1k)
+        const costOptimizedModels = sortedByCost.slice(0, Math.ceil(sortedByCost.length * 0.25))
+          .filter(model => model.quality_score > 0.7)
+
+        if (costOptimizedModels.length > 0) {
+          optimizedRate = costOptimizedModels.reduce((sum, model) => sum + model.cost_per_1k, 0) / costOptimizedModels.length
+        }
+      }
+
+      const optimizedCost = (totalTokens / 1000) * optimizedRate * useCaseData.cost
+
+      const savings = currentCost - optimizedCost
+      const savingsPercentage = currentCost > 0 ? ((savings / currentCost) * 100) : 0
+
+      // Payback period (assuming $99/month for startup plan)
+      const monthlyPlanCost = monthlyRequests <= 1000000 ? 99 : 499
+      const paybackPeriod = savings > 0 ? monthlyPlanCost / savings : 0
+
+      setResult({
+        currentCost,
+        optimizedCost,
+        savings,
+        savingsPercentage,
+        paybackPeriod
+      })
+    } catch (error) {
+      console.error('Failed to calculate savings:', error)
+      // Fallback to static calculation
+      const useCaseData = USE_CASE_MULTIPLIERS[useCase as keyof typeof USE_CASE_MULTIPLIERS]
+      const baseTokens = 1000
+      const totalTokens = monthlyRequests * baseTokens
+      const providerRates = { "openai": 0.030, "anthropic": 0.080, "google": 0.025, "other": 0.035 }
+      const currentRate = providerRates[currentProvider as keyof typeof providerRates]
+      const currentCost = (totalTokens / 1000) * currentRate * useCaseData.cost
+      const optimizedCost = currentCost * 0.20
+
+      setResult({
+        currentCost,
+        optimizedCost,
+        savings: currentCost - optimizedCost,
+        savingsPercentage: 80,
+        paybackPeriod: (monthlyRequests <= 1000000 ? 99 : 499) / (currentCost - optimizedCost)
+      })
+    } finally {
+      setIsLoading(false)
     }
-    
-    const currentRate = providerRates[currentProvider as keyof typeof providerRates]
-    const currentCost = (totalTokens / 1000) * currentRate * useCaseData.cost
-    
-    // LLM Router optimized cost (80% savings on average)
-    const optimizationFactor = 0.20 // 80% savings
-    const optimizedCost = currentCost * optimizationFactor
-    
-    const savings = currentCost - optimizedCost
-    const savingsPercentage = ((savings / currentCost) * 100)
-    
-    // Payback period (assuming $99/month for startup plan)
-    const monthlyPlanCost = monthlyRequests <= 1000000 ? 99 : 499
-    const paybackPeriod = monthlyPlanCost / savings
-
-    setResult({
-      currentCost,
-      optimizedCost,
-      savings,
-      savingsPercentage,
-      paybackPeriod
-    })
   }
 
   useEffect(() => {
@@ -119,7 +181,7 @@ export default function CostCalculator() {
                 type="number"
                 value={monthlyRequests}
                 onChange={(e) => setMonthlyRequests(parseInt(e.target.value) || 0)}
-                className="w-full p-4 border border-gray-200 rounded-lg text-lg font-mono focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full p-4 border border-gray-200 rounded-lg text-lg font-mono focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
                 placeholder="1,000,000"
               />
               <div className="text-sm text-gray-600 mt-2">
@@ -135,7 +197,7 @@ export default function CostCalculator() {
               <select
                 value={useCase}
                 onChange={(e) => setUseCase(e.target.value)}
-                className="w-full p-4 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full p-4 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
               >
                 {Object.entries(USE_CASE_MULTIPLIERS).map(([key, data]) => (
                   <option key={key} value={key}>
@@ -153,7 +215,7 @@ export default function CostCalculator() {
               <select
                 value={currentProvider}
                 onChange={(e) => setCurrentProvider(e.target.value)}
-                className="w-full p-4 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full p-4 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-gray-900 bg-white"
               >
                 <option value="openai">OpenAI (GPT-4, GPT-3.5)</option>
                 <option value="anthropic">Anthropic (Claude)</option>

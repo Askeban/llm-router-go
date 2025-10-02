@@ -1,0 +1,77 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+server
+llm-router-api
+llm-router-website
+
+# Go build artifacts
+*.test
+*.out
+/bin/
+/build/
+
+# Frontend build artifacts
+website/.next/
+website/out/
+website/node_modules/
+website/.env.local
+website/.env.production.local
+website/dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Cloud Build
+.gcloudignore
+
+# Go downloads
+go.sum
+
+# Database
+*.db
+*.sqlite
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+ENV/
+env/
+
+# Docker
+.dockerignore
+
+# Test coverage
+*.coverprofile
+coverage.txt
+
+# Cloud Run sources
+run-sources/
