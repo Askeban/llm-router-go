@@ -74,4 +74,4 @@ env/
 coverage.txt
 
 # Cloud Run sources
-run-sources/
+run-sources/.env.production
