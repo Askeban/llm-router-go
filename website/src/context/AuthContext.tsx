@@ -4,9 +4,12 @@ import { useRouter } from 'next/router';
 interface User {
   id: string;
   email: string;
-  name: string;
-  apiKey?: string;
-  createdAt: string;
+  full_name: string;
+  plan_type: string;
+  status: string;
+  beta_access: boolean;
+  is_active: boolean;
+  created_at: string;
 }
 
 interface AuthContextType {
@@ -15,6 +18,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string; waitlist?: boolean; position?: number }>;
+  loginWithGithub: () => void;
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
 }
@@ -138,12 +142,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUser(prev => prev ? { ...prev, ...userData } : null);
   };
 
+  const loginWithGithub = () => {
+    const githubClientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID || '';
+    const redirectUri = `${window.location.origin}/auth/github/callback`;
+    const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&redirect_uri=${redirectUri}&scope=user:email`;
+    window.location.href = githubAuthUrl;
+  };
+
   const value: AuthContextType = {
     user,
     isLoading,
     isAuthenticated,
     login,
     register,
+    loginWithGithub,
     logout,
     updateUser,
   };

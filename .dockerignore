@@ -49,3 +49,18 @@ logs/
 # Temporary files
 *.log
 *.tmp
+
+# Exclude Go source distribution
+go/
+go1.*.tar.gz
+
+# Exclude website build artifacts
+website/node_modules/
+website/.next/
+website/out/
+
+# Exclude Python and other services
+python/
+
+# Exclude cloud proxy
+cloud_sql_proxy
