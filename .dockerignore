@@ -64,3 +64,13 @@ python/
 
 # Exclude cloud proxy
 cloud_sql_proxy
+
+# Exclude old cmd binaries with broken dependencies
+cmd/
+
+# Exclude deploy configs
+deploy/
+scripts/
+
+# Exclude test files
+*_test.go
