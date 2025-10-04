@@ -1,0 +1,45 @@
+# Multi-stage build for production
+FROM golang:1.22-alpine AS builder
+
+WORKDIR /app
+
+# Install git (needed for go mod download)
+RUN apk add --no-cache git
+
+# Copy only what we need
+COPY go.mod ./
+COPY main.go ./
+COPY internal/ ./internal/
+COPY configs/ ./configs/
+COPY database/ ./database/
+
+# Download dependencies and build
+RUN go mod tidy && \
+    go mod download && \
+    go build -o router main.go
+
+# Final stage
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates tzdata wget
+
+WORKDIR /root/
+
+# Copy binary and required files
+COPY --from=builder /app/router .
+COPY --from=builder /app/configs/model_1.json ./configs/model_1.json
+COPY --from=builder /app/database/schema_postgres.sql ./database/schema_postgres.sql
+
+# Environment variables
+ENV MODEL_PATH=./configs/model_1.json
+ENV SCHEMA_PATH=./database/schema_postgres.sql
+ENV PORT=8080
+ENV GIN_MODE=release
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/healthz || exit 1
+
+EXPOSE 8080
+
+CMD ["./router"]

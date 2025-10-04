@@ -1,0 +1,14 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-f'
+      - 'Dockerfile.production'
+      - '-t'
+      - 'gcr.io/routellm-prod/llm-router-api:v1.0'
+      - '-t'
+      - 'gcr.io/routellm-prod/llm-router-api:latest'
+      - '.'
+images:
+  - 'gcr.io/routellm-prod/llm-router-api:v1.0'
+  - 'gcr.io/routellm-prod/llm-router-api:latest'
